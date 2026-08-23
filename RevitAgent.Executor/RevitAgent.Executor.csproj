@@ -1,0 +1,71 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <PlatformTarget>x64</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <AssemblyName>RevitAgent.Executor.$(RevitVersion)</AssemblyName>
+    <RootNamespace>RevitAgent.Executor</RootNamespace>
+    <OutputPath>bin\$(Configuration)\$(RevitVersion)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <DefineConstants Condition="'$(RevitVersion)' == '2019'">$(DefineConstants);REVIT2019</DefineConstants>
+    <DefineConstants Condition="'$(RevitVersion)' == '2020'">$(DefineConstants);REVIT2020</DefineConstants>
+    <DefineConstants Condition="'$(RevitVersion)' == '2021'">$(DefineConstants);REVIT2021</DefineConstants>
+    <DefineConstants Condition="'$(RevitVersion)' == '2022'">$(DefineConstants);REVIT2022</DefineConstants>
+  </PropertyGroup>
+
+  <!--
+    Link the injector as a prebuilt, version-matched DLL committed under lib/<RevitVersion>/.
+    The injector source is NOT part of this repo — it ships as a binary only. $(RevitVersion) in
+    HintPath resolves to the matching variant per build (2019/2020/2021/2022). Private=true copies
+    the DLL into the executor output (and thus the staged executor folder). PolyHook2.NET + RevitAPI
+    are referenced directly by the executor, so the injector's own dependencies are already present —
+    no transitive assets are lost by linking the DLL instead of the source.
+  -->
+  <ItemGroup>
+    <Reference Include="Nice3point.Revit.Injector">
+      <HintPath>..\lib\$(RevitVersion)\Nice3point.Revit.Injector.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(RevitVersion)' == '2019'">
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2019.2.11" PrivateAssets="all" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2019.2.11" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(RevitVersion)' == '2020'">
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2020.2.60" PrivateAssets="all" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2020.2.60" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(RevitVersion)' == '2021'">
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2021.1.50" PrivateAssets="all" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2021.1.50" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(RevitVersion)' == '2022'">
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2022.1.80" PrivateAssets="all" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2022.1.80" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="PolyHook2.NET" Version="1.1.3" />
+    <!-- Roslyn: compile LLM-generated Revit C# (modern C# syntax: ?., $"", nameof, records). netstandard2.0 asset runs on net48. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Web.Extensions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="Nice3point.Revit.Injector.Attributes.RevitLanguageAttribute">
+      <_Parameter1>ENU</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

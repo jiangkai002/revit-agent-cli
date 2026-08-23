@@ -1,0 +1,8 @@
+{
+  "version": "1.0",
+  "projects": [
+    "Nice3point.Revit.Injector/Nice3point.Revit.Injector.csproj",
+    "RevitAgent.Executor/RevitAgent.Executor.csproj",
+    "RevitAgent.Cli/RevitAgent.Cli.csproj"
+  ]
+}

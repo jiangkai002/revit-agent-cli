@@ -1,0 +1,80 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>revit-agent</ToolCommandName>
+    <PackageId>RevitAgent.Cli</PackageId>
+    <Version>1.0.0</Version>
+    <AssemblyName>revit-agent</AssemblyName>
+    <RootNamespace>RevitAgent.Cli</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Agents.AI" Version="1.18.0" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.9.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Prompts\SystemPrompt.md" />
+  </ItemGroup>
+
+  <!--
+    The net10 CLI cannot ProjectReference the net48 executor (TFM mismatch).
+    Build the per-version executors (which embed the injector + PolyHook2 native dlls +
+    Roslyn) and stage their entire output folder beside the CLI assembly so both
+    `dotnet run` (dev) and `dotnet pack`/`tool install` resolve them at runtime.
+    Runs before Build only; `dotnet pack` implicitly builds first.
+    (Running it before Pack too re-invokes the net48 executor under the pack context's
+    net10.0 TargetFramework, which fails NETSDK1005.)
+
+    The <Content> PackagePath items MUST be added inside this target (after the Copy),
+    not as a top-level ItemGroup: a top-level wildcard is evaluated statically at project
+    load, BEFORE staging copies files into the output, so newly-staged assemblies (e.g.
+    Roslyn's Microsoft.CodeAnalysis.* + transitive deps) would be missed by the pack.
+  -->
+  <Target Name="BuildAndStageExecutors" BeforeTargets="Build">
+    <MSBuild Projects="..\RevitAgent.Executor\RevitAgent.Executor.csproj"
+             Properties="Configuration=$(Configuration);RevitVersion=2019;TargetFramework=net48;RuntimeIdentifier=win-x64" />
+    <MSBuild Projects="..\RevitAgent.Executor\RevitAgent.Executor.csproj"
+             Properties="Configuration=$(Configuration);RevitVersion=2020;TargetFramework=net48;RuntimeIdentifier=win-x64" />
+    <MSBuild Projects="..\RevitAgent.Executor\RevitAgent.Executor.csproj"
+             Properties="Configuration=$(Configuration);RevitVersion=2021;TargetFramework=net48;RuntimeIdentifier=win-x64" />
+    <MSBuild Projects="..\RevitAgent.Executor\RevitAgent.Executor.csproj"
+             Properties="Configuration=$(Configuration);RevitVersion=2022;TargetFramework=net48;RuntimeIdentifier=win-x64" />
+    <ItemGroup>
+      <ExecutorFiles2019 Include="..\RevitAgent.Executor\bin\$(Configuration)\2019\**\*" />
+      <ExecutorFiles2020 Include="..\RevitAgent.Executor\bin\$(Configuration)\2020\**\*" />
+      <ExecutorFiles2021 Include="..\RevitAgent.Executor\bin\$(Configuration)\2021\**\*" />
+      <ExecutorFiles2022 Include="..\RevitAgent.Executor\bin\$(Configuration)\2022\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ExecutorFiles2019)" DestinationFolder="$(OutputPath)executor-2019\%(RecursiveDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(ExecutorFiles2020)" DestinationFolder="$(OutputPath)executor-2020\%(RecursiveDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(ExecutorFiles2021)" DestinationFolder="$(OutputPath)executor-2021\%(RecursiveDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(ExecutorFiles2022)" DestinationFolder="$(OutputPath)executor-2022\%(RecursiveDir)" SkipUnchangedFiles="true" />
+    <!-- Slim staged executors: drop debug symbols, the unused PolyHook cross-platform runtimes
+         (linux-x64 incl. libcpolyhook2.so, win-x86), and the 13 Roslyn locale satellite folders.
+         The locales are what trigger pack-time duplication of the native runtimes under each
+         locale dir (the 1.15GB nupkg bloat). win-x64 is kept (PolyHook may probe it at runtime).
+         Runs after Copy so the globs resolve against staged output; before Content so packed
+         content is already slimmed. -->
+    <!-- Slim staged executors via slim-executors.ps1 (MSBuild directory globs with a literal
+         final segment don't match dirs, only files, so a glob-based RemoveDir silently no-ops;
+         the script removes *.pdb + unused PolyHook platforms + the 13 Roslyn locale satellites).
+         The staged root is passed through STAGED_ROOT (cmd's quoted set form tolerates the
+         trailing backslash in OutputPath without breaking PowerShell's arg parser). -->
+    <Exec Command='set "STAGED_ROOT=$(OutputPath)" &amp; powershell -NoProfile -ExecutionPolicy Bypass -File "$(MSBuildProjectDirectory)\slim-executors.ps1"' />
+    <ItemGroup Condition="'$(PackAsTool)' == 'true'">
+      <Content Include="$(OutputPath)executor-2019\**\*" PackagePath="tools\executor-2019\%(RecursiveDir)" BuildAction="Content" />
+      <Content Include="$(OutputPath)executor-2020\**\*" PackagePath="tools\executor-2020\%(RecursiveDir)" BuildAction="Content" />
+      <Content Include="$(OutputPath)executor-2021\**\*" PackagePath="tools\executor-2021\%(RecursiveDir)" BuildAction="Content" />
+      <Content Include="$(OutputPath)executor-2022\**\*" PackagePath="tools\executor-2022\%(RecursiveDir)" BuildAction="Content" />
+    </ItemGroup>
+  </Target>
+
+</Project>

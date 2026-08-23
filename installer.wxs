@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  RevitAgent MSI installer (WiX v4+ schema).
+
+  Payload is the self-contained publish in installer-payload\ (revit-agent.exe + bundled
+  .NET 10 runtime + 4 slimmed executor-{2019,2020,2021,2022}\ folders). The file list is
+  harvested into payload-fragment.wxs by gen-payload-fragment.ps1 (WiX v7 has no `heat`
+  subcommand). Build: powershell -File gen-payload-fragment.ps1 &&
+  wix build installer.wxs payload-fragment.wxs -arch x64 -o revit-agent.msi
+  (-arch x64 marks the package platform so 64-bit components validate under ICE80).
+
+  Installs per-machine to C:\Program Files\revit-agent\ and appends that dir to the
+  System PATH (MSI Environment table — safe append, auto-removed on uninstall). No API
+  key is baked in; the user sets REVIT_AGENT_API_KEY + runs `revit-agent config set`
+  after install.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="RevitAgent"
+           Manufacturer="RevitAgent"
+           Version="1.0.0"
+           ProductCode="*"
+           UpgradeCode="AEF95623-D4A4-422E-85CC-C19C37900808"
+           Language="1033"
+           Scope="perMachine">
+
+    <!-- Reinstall over an existing install replaces it cleanly (same UpgradeCode); a
+         downgrade (older build over a newer one) is blocked. ProductCode="*" makes each
+         build a distinct product so the same UpgradeCode drives major-upgrade replace. -->
+    <MajorUpgrade Schedule="afterInstallValidate"
+                  DowngradeErrorMessage="A newer version of RevitAgent is already installed." />
+
+    <!-- Embed the cabinet so the MSI is a single self-contained file. -->
+    <MediaTemplate EmbedCab="yes" />
+
+    <Feature Id="ProductFeature" Title="RevitAgent" Level="1">
+      <ComponentGroupRef Id="PayloadFiles" />
+      <ComponentRef Id="PathEnv" />
+    </Feature>
+  </Package>
+
+  <!-- Install location: C:\Program Files\revit-agent\ (INSTALLFOLDER is the target the
+       payload-fragment.wxs DirectoryRef blocks attach to). v7 uses StandardDirectory for
+       the well-known Program Files folder. -->
+  <Fragment>
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="revit-agent" />
+    </StandardDirectory>
+  </Fragment>
+
+  <!-- Append INSTALLFOLDER to the System PATH. A registry value under HKLM\SOFTWARE\RevitAgent
+       serves as the component keypath (an Environment-only component needs a keypath; the
+       registry value doubles as an install marker). On uninstall the Environment table entry
+       is removed automatically (Permanent="no"). -->
+  <Fragment>
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="PathEnv" Bitness="always64">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\RevitAgent">
+          <RegistryValue Name="InstallDir" Value="[INSTALLFOLDER]" Type="string" KeyPath="yes" />
+        </RegistryKey>
+        <Environment Id="PATH"
+                     Name="PATH"
+                     Value="[INSTALLFOLDER]"
+                     Permanent="no"
+                     Part="last"
+                     Action="set"
+                     System="yes"
+                     Separator=";" />
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+</Wix>

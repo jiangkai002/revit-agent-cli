@@ -1,0 +1,6 @@
+{
+  "name": "room-audit",
+  "description": "检查模型里有没有房间、统计房间数量与放置/封闭情况，适配二结构墙体模型",
+  "version": "1.0.0",
+  "author": "sample"
+}

@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <RevitVersion Condition="'$(RevitVersion)' == ''">2022</RevitVersion>
+  </PropertyGroup>
+</Project>
