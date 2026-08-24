@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RevitAgent — 无头 Revit 智能体 CLI</title>
+<meta name="description" content="自然语言 → 生成 Revit 二次开发 C# → 无头编译执行 → 自然语言回答。不用打开 Revit。">
+<style>
+  :root{
+    --bg:#0a0a0d; --bg2:#0e0e12; --term:#0c0d11;
+    --border:#21222b; --text:#d6d6db; --head:#f4f4f6; --muted:#8a8a93;
+    --green:#4ade80; --violet:#a78bfa; --blue:#60a5fa; --dim:#6b6b73;
+    --mono:ui-monospace,"Cascadia Code","SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:var(--sans); color:var(--text); line-height:1.6;
+    background:
+      radial-gradient(ellipse 70% 45% at 50% 8%, rgba(124,92,255,.10), transparent 60%),
+      radial-gradient(ellipse 50% 40% at 60% 30%, rgba(74,222,128,.05), transparent 60%),
+      var(--bg);
+    min-height:100vh; -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none}
+
+  /* nav */
+  header{
+    display:flex;align-items:center;justify-content:space-between;
+    max-width:1040px;margin:0 auto;padding:22px 24px;
+  }
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--head);letter-spacing:.2px}
+  .brand .mark{width:15px;height:15px;border-radius:4px;transform:rotate(45deg);
+    background:linear-gradient(135deg,var(--violet),var(--blue));box-shadow:0 0 16px rgba(124,92,255,.4)}
+  .brand b{font-size:1.05rem}
+  .brand span{color:var(--muted);font-weight:500;font-size:.78rem;border:1px solid var(--border);padding:2px 7px;border-radius:5px;margin-left:4px}
+  nav.links{display:flex;gap:26px;font-size:.92rem;color:var(--muted)}
+  nav.links a:hover{color:var(--head)}
+  .btn{border:1px solid var(--border);padding:8px 16px;border-radius:8px;font-size:.9rem;color:var(--head);background:rgba(255,255,255,.02);transition:.15s}
+  .btn:hover{border-color:var(--violet);color:#fff;box-shadow:0 0 0 1px rgba(124,92,255,.3)}
+  @media(max-width:640px){ nav.links{display:none} }
+
+  /* hero */
+  main{max-width:1040px;margin:0 auto;padding:28px 24px 64px}
+  .hero{text-align:center;display:flex;flex-direction:column;align-items:center}
+  .eyebrow{color:var(--muted);font-size:.85rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px}
+  h1{font-size:clamp(2rem,4.6vw,3.1rem);line-height:1.18;font-weight:800;color:var(--head);letter-spacing:-.5px;max-width:14ch}
+  h1 .arrow{color:var(--violet);font-weight:700}
+  .sub{color:var(--muted);font-size:1.02rem;max-width:620px;margin:18px auto 0}
+  .install{margin:24px auto 0;display:flex;flex-direction:column;align-items:center;gap:8px}
+  .install code{font-family:var(--mono);font-size:.86rem;background:var(--bg2);border:1px solid var(--border);
+    padding:9px 14px;border-radius:8px;color:var(--text);white-space:nowrap;overflow-x:auto;max-width:92vw}
+  .install .op{color:var(--violet)}
+  .install .hint{color:var(--dim);font-size:.78rem}
+
+  /* terminal */
+  .terminal{margin:30px auto 0;width:min(860px,94vw);text-align:left;
+    background:var(--term);border:1px solid var(--border);border-radius:12px;overflow:hidden;
+    box-shadow:0 24px 60px -20px rgba(0,0,0,.7), 0 0 0 1px rgba(124,92,255,.08), 0 0 80px -30px rgba(124,92,255,.25)}
+  .chrome{display:flex;align-items:center;gap:8px;padding:11px 14px;background:linear-gradient(var(--bg2),#101015);border-bottom:1px solid var(--border)}
+  .chrome .dot{width:12px;height:12px;border-radius:50%}
+  .dot.r{background:#ff5f57}.dot.y{background:#febc2e}.dot.g{background:#28c840}
+  .chrome .title{margin-left:6px;font-family:var(--mono);font-size:.8rem;color:var(--dim)}
+  .replay{margin-left:auto;font-family:var(--sans);font-size:.74rem;color:var(--dim);background:none;border:1px solid var(--border);
+    padding:3px 10px;border-radius:6px;cursor:pointer;transition:.15s}
+  .replay:hover{color:var(--head);border-color:var(--violet)}
+  #term{font-family:var(--mono);font-size:13.5px;line-height:1.7;padding:18px 18px 20px;
+    height:430px;overflow-y:auto;color:var(--text);white-space:pre-wrap;word-break:break-word}
+  #term::-webkit-scrollbar{width:9px}
+  #term::-webkit-scrollbar-thumb{background:#2a2b33;border-radius:5px}
+  #term .line{white-space:pre-wrap}
+  #term .prompt{color:var(--green)}
+  #term .cmd{color:var(--head)}
+  #term .reasoning{color:var(--violet)}
+  #term .toolcall{color:var(--blue)}
+  #term .result{color:var(--green)}
+  #term .answer{color:var(--text);margin-top:4px}
+  #term .spin{color:var(--violet)}
+  #term .ok{color:var(--green)}
+  .cursor{color:var(--green);animation:blink 1s steps(2) infinite}
+  @keyframes blink{0%{opacity:1}50%{opacity:0}}
+  @media(prefers-reduced-motion:reduce){ .cursor{animation:none} }
+
+  /* features */
+  .features{margin:64px auto 0;display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  @media(max-width:860px){ .features{grid-template-columns:repeat(2,1fr)} }
+  @media(max-width:520px){ .features{grid-template-columns:1fr} }
+  .card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px 18px}
+  .card h3{font-size:.98rem;color:var(--head);margin-bottom:7px;font-weight:700}
+  .card p{font-size:.84rem;color:var(--muted);line-height:1.55}
+  .card .tag{font-family:var(--mono);font-size:.72rem;color:var(--violet);display:block;margin-bottom:9px}
+
+  /* footer */
+  footer{max-width:1040px;margin:0 auto;padding:26px 24px 40px;border-top:1px solid var(--border);
+    display:flex;justify-content:space-between;align-items:center;color:var(--dim);font-size:.82rem;flex-wrap:wrap;gap:10px}
+  footer a:hover{color:var(--head)}
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="mark"></span><b>RevitAgent</b><span>CLI</span></div>
+    <nav class="links">
+      <a href="#features">特性</a>
+      <a href="https://github.com/jiangkai002/revit-agent-cli">文档</a>
+      <a href="https://github.com/jiangkai002/revit-agent-cli">技能</a>
+    </nav>
+    <a class="btn" href="https://github.com/jiangkai002/revit-agent-cli">GitHub ↗</a>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="eyebrow">无头 Revit · 智能体 CLI</p>
+      <h1>自然语言 <span class="arrow">→</span> Revit 代码 <span class="arrow">→</span> 模型答案<br>都在终端里</h1>
+      <p class="sub">描述需求，智能体生成 Revit 二次开发 C#，在无头 Revit 里编译并执行，再用自然语言回答你。不用打开 Revit 界面。</p>
+      <div class="install">
+        <code>git clone https://github.com/jiangkai002/revit-agent-cli <span class="op">&amp;&amp;</span> .\build.ps1</code>
+        <span class="hint">Windows · .NET 10 · 需已安装 Revit 2019–2022</span>
+      </div>
+
+      <div class="terminal" aria-label="revit-agent 演示终端">
+        <div class="chrome">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <span class="title">revit-agent — bash</span>
+          <button id="replay" class="replay" type="button">重播</button>
+        </div>
+        <div id="term"></div>
+      </div>
+    </section>
+
+    <section class="features" id="features">
+      <div class="card">
+        <span class="tag">batch</span>
+        <h3>多模型批量</h3>
+        <p>一个目录下多个 .rvt，单会话顺序执行——引擎只初始化一次（约 20 秒），而不是每跑一个模型就重启 Revit。</p>
+      </div>
+      <div class="card">
+        <span class="tag">2019 – 2022</span>
+        <h3>多版本无头</h3>
+        <p>Revit 2019–2022 都能无头跑：2022+ 走 Initialize_ForAutodeskInternalUseOnly，≤2021 走 Product.Init 回退。</p>
+      </div>
+      <div class="card">
+        <span class="tag">roslyn</span>
+        <h3>现场生成代码</h3>
+        <p>Roslyn 编译 LLM 生成的现代 C#；每模型独立临时副本 + fresh instance，状态不跨模型泄漏。</p>
+      </div>
+      <div class="card">
+        <span class="tag">skills · csv</span>
+        <h3>技能 · 导出 · 进度</h3>
+        <p>领域技能按需加载；表格一键导 CSV（带 BOM）；灰色实时显示推理、工具调用与结果。</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>RevitAgent · 无头 Revit 智能体</span>
+    <a href="https://github.com/jiangkai002/revit-agent-cli">github.com/jiangkai002/revit-agent-cli ↗</a>
+  </footer>
+
+<script>
+const term = document.getElementById('term');
+const replayBtn = document.getElementById('replay');
+const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const COMMAND = `revit-agent run "检查模型中有没有房间" --version 2022`;
+const ANSWER =
+`是的，模型里有房间，共 663 个。
+
+房间统计
+  房间总数              663
+  已放置（有边界）      610
+  未放置（无边界）       53
+
+所在楼层（约）
+  A_1F_站坪层_±0.000          610
+  A_1FM_国际到达层_4.500       50
+  A_B1M_设备机房夹层_-1.500      1
+
+值得注意
+  大量房间面积 = 0（边界未闭合/未放置）；实际有面积(>0)约 150 个。
+  较大者：走廊 286 ≈ 4991 ft²、热力交换站W1 127 ≈ 4238 ft²、空调机房 438 ≈ 3688 ft²。
+  53 个未放置房间可能需在 Revit 中补房间分隔。
+
+需要进一步分析吗？按楼层统计 / 面积为 0 的房间明细 / 未放置房间清单。`;
+
+let cursor, cancelled = false, loopTimer;
+const el = (t,c) => { const e=document.createElement(t); if(c)e.className=c; return e; };
+const sleep = ms => new Promise(r => setTimeout(r, reduced ? Math.min(ms,60) : ms));
+const scroll = () => term.scrollTop = term.scrollHeight;
+function makeCursor(){ cursor = el('span','cursor'); cursor.textContent='▋'; }
+function attach(node){ if(cursor&&cursor.parentNode) cursor.parentNode.removeChild(cursor); node.appendChild(cursor); }
+function detach(){ if(cursor&&cursor.parentNode) cursor.parentNode.removeChild(cursor); }
+
+async function typeInto(node, text, speed){
+  attach(node);
+  for(const ch of text){
+    if(cancelled) return;
+    node.insertBefore(document.createTextNode(ch), cursor);
+    scroll();
+    if(ch==='\n'||ch===' ') continue;
+    await sleep(speed + Math.random()*speed*0.5);
+  }
+}
+async function progLine(text, cls){
+  const line = el('div','line '+cls); line.textContent=text; term.append(line); scroll();
+}
+function spinner(text, ms){
+  const line = el('div','line reasoning');
+  const t = el('span'); t.textContent = text + '  ';
+  const sp = el('span','spin'); sp.textContent='⠋';
+  line.append(t, sp); term.append(line); scroll();
+  const frames='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏';
+  let i=0;
+  return new Promise(res=>{
+    const iv=setInterval(()=>{ sp.textContent=frames[i++%frames.length]; scroll(); }, 80);
+    setTimeout(()=>{ clearInterval(iv); sp.textContent='✓'; sp.className='ok'; scroll(); res(); }, reduced?Math.min(ms,200):ms);
+  });
+}
+
+async function play(){
+  cancelled = false;
+  clearTimeout(loopTimer);
+  term.innerHTML = '';
+  makeCursor();
+  const line = el('div','line');
+  const prompt = el('span','prompt'); prompt.textContent='$ ';
+  const cmd = el('span','cmd');
+  line.append(prompt, cmd);
+  term.append(line);
+  await typeInto(cmd, COMMAND, 26);
+  await sleep(320);
+  detach();
+  await progLine('▎ 正在理解需求…','reasoning'); await sleep(reduced?60:400);
+  await progLine('→ 生成 Revit 代码','toolcall'); await sleep(reduced?60:300);
+  await progLine('→ RunRevitCode · 无头启动 Revit、打开模型','toolcall');
+  await spinner('▎ 注入 Revit 引擎', 1500);
+  await progLine('← 执行完成','result'); await sleep(reduced?60:220);
+  const ans = el('pre','answer'); term.append(ans);
+  await typeInto(ans, ANSWER, 5);
+  loopTimer = setTimeout(()=>{ if(!cancelled) play(); }, reduced?2000:7000);
+}
+
+replayBtn.addEventListener('click', ()=>{ cancelled=true; setTimeout(play, 60); });
+
+if(reduced){
+  const line=el('div','line'); const p=el('span','prompt'); p.textContent='$ '; const c=el('span','cmd'); c.textContent=COMMAND;
+  line.append(p,c); term.append(line);
+  [['▎ 正在理解需求…','reasoning'],['→ 生成 Revit 代码','toolcall'],['→ RunRevitCode · 无头启动 Revit、打开模型','toolcall'],['▎ 注入 Revit 引擎  ✓','reasoning'],['← 执行完成','result']].forEach(([t,cls])=>{ const l=el('div','line '+cls); l.textContent=t; term.append(l); });
+  const a=el('pre','answer'); a.textContent=ANSWER; term.append(a);
+} else {
+  play();
+}
+</script>
+</body>
+</html>
