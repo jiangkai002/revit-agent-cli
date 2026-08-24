@@ -17,6 +17,11 @@ public sealed class SkillManifest
     public string Description { get; set; } = "";
     public string Version { get; set; } = "1.0.0";
     public string Author { get; set; } = "";
+    /// <summary>True for read-only skills shipped with the tool (auto-discovered beside the exe,
+    /// see BundledSkillsDirectory). Set by ListInstalled; never persisted in skill.json. A
+    /// user-installed skill of the same name overrides the bundled one, so the override is
+    /// Bundled=false. Used by `skill list` to tag built-in skills as [内置].</summary>
+    public bool Bundled { get; set; }
 }
 
 public static class SkillStore
@@ -31,6 +36,35 @@ public static class SkillStore
         }
     }
 
+    /// <summary>Read-only skills shipped with the tool, auto-discovered so they're available
+    /// out-of-box (no `skill install` needed). Probes the same layouts ExecutorLocator uses for
+    /// the executors: &lt;baseDir&gt;/skills (dev `dotnet run`, MSI install dir) and
+    /// &lt;baseDir&gt;/tools/skills (installed global-tool layout, PackagePath=tools/skills).
+    /// Returns null when no bundled set is present (e.g. running from a build that didn't stage
+    /// skills) — bundled skills then simply aren't offered, never an error. ListInstalled merges
+    /// these under the user dir; LoadSkillBody/Show resolve user-then-bundled; Remove refuses
+    /// bundled skills (read-only). A user skill of the same name overrides the bundled one.</summary>
+    public static string? BundledSkillsDirectory
+    {
+        get
+        {
+            var baseDir = AppContext.BaseDirectory;
+            var candidates = new[]
+            {
+                Path.Combine(baseDir, "skills"),
+                Path.Combine(baseDir, "tools", "skills"),
+                Path.Combine(baseDir, "..", "skills"),
+                Path.Combine(baseDir, "..", "..", "skills"),
+            };
+            foreach (var c in candidates)
+            {
+                var full = Path.GetFullPath(c);
+                if (Directory.Exists(full)) return full;
+            }
+            return null;
+        }
+    }
+
     private static readonly HttpClient s_http = new() { Timeout = TimeSpan.FromSeconds(60) };
 
     private static readonly JsonSerializerOptions JsonOpts = new()
@@ -38,19 +72,37 @@ public static class SkillStore
         PropertyNameCaseInsensitive = true
     };
 
-    /// <summary>Enumerate installed skills (name+description). Per-skill parse errors are skipped, never thrown.</summary>
+    /// <summary>Enumerate installed skills (name+description). Per-skill parse errors are skipped,
+    /// never thrown. Merges the bundled read-only set under BundledSkillsDirectory with the user
+    /// dir; a user skill of the same name overrides the bundled one (only the user one is listed,
+    /// tagged Bundled=false). The bundled-only ones are tagged Bundled=true.</summary>
     public static List<SkillManifest> ListInstalled()
     {
-        var list = new List<SkillManifest>();
-        if (!Directory.Exists(SkillsDirectory)) return list;
-        foreach (var dir in Directory.GetDirectories(SkillsDirectory))
+        // name -> (manifest, isBundled). Bundled first (lower precedence); user dir overwrites
+        // any same-named bundled entry, so a user override wins and is tagged non-bundled.
+        var byName = new Dictionary<string, (SkillManifest Manifest, bool Bundled)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var dir in EnumerateSkillDirs(BundledSkillsDirectory))
         {
-            var manifest = TryReadManifest(dir);
-            if (manifest is not null && !string.IsNullOrWhiteSpace(manifest.Name))
-                list.Add(manifest);
+            var m = TryReadManifest(dir);
+            if (m is not null && !string.IsNullOrWhiteSpace(m.Name))
+                byName[m.Name] = (m, true);
         }
+        foreach (var dir in EnumerateSkillDirs(SkillsDirectory))
+        {
+            var m = TryReadManifest(dir);
+            if (m is not null && !string.IsNullOrWhiteSpace(m.Name))
+                byName[m.Name] = (m, false);
+        }
+        var list = byName.Values.Select(v => { v.Manifest.Bundled = v.Bundled; return v.Manifest; }).ToList();
         list.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
         return list;
+    }
+
+    private static IEnumerable<string> EnumerateSkillDirs(string? root)
+    {
+        if (string.IsNullOrEmpty(root) || !Directory.Exists(root))
+            return Array.Empty<string>();
+        return Directory.GetDirectories(root);
     }
 
     /// <summary>Load a skill's guidance body (SKILL.md + labeled templates/*.cs). Null if not found.</summary>
@@ -137,11 +189,19 @@ public static class SkillStore
         }
     }
 
-    /// <summary>Remove an installed skill (by folder or manifest name). False if not found.</summary>
+    /// <summary>Remove an installed user skill (by folder or manifest name). Bundled read-only
+    /// skills cannot be removed — to suppress one, install a same-named user skill (it overrides
+    /// the bundled entry). False if not found or if the resolved skill is bundled.</summary>
     public static (bool Ok, string Message) Remove(string name)
     {
         var dir = ResolveSkillDir(name);
         if (dir is null) return (false, $"未找到技能: {name}");
+        var bundled = BundledSkillsDirectory;
+        if (bundled is not null
+            && dir.StartsWith(bundled + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, $"'{name}' 是随包只读内置技能,不可移除。如需禁用,在用户技能目录装同名技能覆盖。");
+        }
         try { Directory.Delete(dir, recursive: true); return (true, $"已移除技能: {name}"); }
         catch (Exception ex) { return (false, $"移除失败: {ex.Message}"); }
     }
@@ -172,18 +232,25 @@ public static class SkillStore
     {
         var safe = SanitizeName(name);
         if (safe is null) return null;
+        // User dir first: a user-installed same-named skill overrides the bundled (read-only) one.
+        var userDir = ResolveInRoot(SkillsDirectory, safe);
+        if (userDir is not null) return userDir;
+        // Bundled fallback (read-only): LoadSkillBody/Show resolve to it; Remove refuses it.
+        return ResolveInRoot(BundledSkillsDirectory, safe);
+    }
+
+    private static string? ResolveInRoot(string? root, string safe)
+    {
+        if (string.IsNullOrEmpty(root) || !Directory.Exists(root)) return null;
         // Fast path: folder named exactly 'safe'.
-        var dir = Path.Combine(SkillsDirectory, safe);
+        var dir = Path.Combine(root, safe);
         if (Directory.Exists(dir) && File.Exists(Path.Combine(dir, "skill.json"))) return dir;
         // Fallback: a skill whose manifest Name matches (folder may differ from manifest name).
-        if (Directory.Exists(SkillsDirectory))
+        foreach (var sub in Directory.GetDirectories(root))
         {
-            foreach (var sub in Directory.GetDirectories(SkillsDirectory))
-            {
-                var m = TryReadManifest(sub);
-                if (m is not null && string.Equals(m.Name, safe, StringComparison.OrdinalIgnoreCase))
-                    return sub;
-            }
+            var m = TryReadManifest(sub);
+            if (m is not null && string.Equals(m.Name, safe, StringComparison.OrdinalIgnoreCase))
+                return sub;
         }
         return null;
     }

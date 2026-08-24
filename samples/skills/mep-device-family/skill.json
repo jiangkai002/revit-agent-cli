@@ -1,0 +1,6 @@
+{
+  "name": "mep-device-family",
+  "description": "机电设备族类型合规检查:设备必须用族建(FamilyInstance),不能用体量(Mass 族类别)建",
+  "version": "1.0.0",
+  "author": "sample"
+}

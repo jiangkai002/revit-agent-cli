@@ -1,23 +1,34 @@
-using System.Text;
 using RevitAgent.Cli;
 using RevitAgent.Cli.Commands;
 
-// The executor mutates the shared console codepage to UTF-8; set it here so the
-// CLI's own output (and any leftover executor state) renders Chinese correctly.
-Console.OutputEncoding = Encoding.UTF8;
-Console.InputEncoding = Encoding.UTF8;
-// Enable Windows Virtual Terminal so the gray "process" display (reasoning, tool
-// calls) renders as ANSI dim/gray instead of littering the output with escape bytes.
-// No-op when output is redirected or on non-Windows.
+// Do NOT touch the console codepage here — neither InputEncoding nor OutputEncoding.
+// SetConsoleCP / SetConsoleOutputCP mutate the SHARED console (conhost) and are NOT
+// restored when this process exits, so the caller's terminal is left polluted:
+//   - InputEncoding  = UTF-8 (65001) breaks Win10 Chinese IME composition + paste;
+//   - OutputEncoding = UTF-8 (65001) leaves the output CP at 65001, after which PSReadLine
+//     encodes typed IME text per its cached 936 → GBK bytes echoed through a 65001 console
+//     => every later TYPED Chinese in that terminal is mojibake ("??????"), even though
+//     paste/parsing still work. (This is the symptom that forced removing OutputEncoding.)
+// The system default (936/GBK on zh-CN Windows) already renders Chinese correctly, and the
+// markers the process display uses (▎ → ← …) are all GBK-representable, so the CLI's own
+// output (answer + gray reasoning/tool lines) needs no codepage change at all. (Non-GBK
+// chars like emoji in an answer may show as '?' — acceptable for Chinese answers.) The
+// executor's result file is UTF-8 via File.WriteAllText (independent of the console CP),
+// and its drained+discarded stdout echo inherits the console's CP, so nothing breaks.
+// Enable Windows Virtual Terminal so the gray "process" display renders as ANSI dim/gray
+// instead of littering the output with escape bytes. No-op when redirected or non-Windows.
 ConsoleAnsi.EnsureEnabled();
 
-if (args.Length == 0)
-{
-    PrintHelp();
-    return 1;
-}
+// `revit-agent` (no args) or `revit-agent --model-path X --version 2022 ...` (option flags, no
+// verb) both drop straight into the interactive REPL (claude-style): a leading option flag is
+// not a subcommand. The help flags are intercepted first so `revit-agent -h` still prints help.
+// `revit-agent chat` is an explicit alias that takes the same options.
+var first = args.Length > 0 ? args[0] : null;
+var isHelp = first is "-h" or "--help" or "help";
+if (first is null || (!isHelp && first.StartsWith('-')))
+    return await ChatCommand.RunAsync(args);
 
-var verb = args[0];
+var verb = first!;
 var rest = args[1..];
 
 return verb switch

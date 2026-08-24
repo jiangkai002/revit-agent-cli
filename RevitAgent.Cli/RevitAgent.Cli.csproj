@@ -57,6 +57,16 @@
     <Copy SourceFiles="@(ExecutorFiles2020)" DestinationFolder="$(OutputPath)executor-2020\%(RecursiveDir)" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(ExecutorFiles2021)" DestinationFolder="$(OutputPath)executor-2021\%(RecursiveDir)" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(ExecutorFiles2022)" DestinationFolder="$(OutputPath)executor-2022\%(RecursiveDir)" SkipUnchangedFiles="true" />
+    <!-- Bundled read-only sample skills: stage samples/skills beside the CLI assembly so dev
+         `dotnet run`/`dotnet build` (BundledSkillsDirectory=<basedir>/skills) and the MSI
+         payload both carry them; packed under tools/skills for the installed global tool
+         (mirrors the executor staging above). slim-executors.ps1 only touches executor-* dirs,
+         so skills/ is untouched. The Content PackagePath must be in this target (after the
+         Copy) like the executor items: a static eval would run before the Copy stages files. -->
+    <ItemGroup>
+      <SkillFiles Include="..\samples\skills\**\*" Exclude="..\samples\skills\**\*.zip" />
+    </ItemGroup>
+    <Copy SourceFiles="@(SkillFiles)" DestinationFolder="$(OutputPath)skills\%(RecursiveDir)" SkipUnchangedFiles="true" />
     <!-- Slim staged executors: drop debug symbols, the unused PolyHook cross-platform runtimes
          (linux-x64 incl. libcpolyhook2.so, win-x86), and the 13 Roslyn locale satellite folders.
          The locales are what trigger pack-time duplication of the native runtimes under each
@@ -74,6 +84,7 @@
       <Content Include="$(OutputPath)executor-2020\**\*" PackagePath="tools\executor-2020\%(RecursiveDir)" BuildAction="Content" />
       <Content Include="$(OutputPath)executor-2021\**\*" PackagePath="tools\executor-2021\%(RecursiveDir)" BuildAction="Content" />
       <Content Include="$(OutputPath)executor-2022\**\*" PackagePath="tools\executor-2022\%(RecursiveDir)" BuildAction="Content" />
+      <Content Include="$(OutputPath)skills\**\*" PackagePath="tools\skills\%(RecursiveDir)" BuildAction="Content" />
     </ItemGroup>
   </Target>
 

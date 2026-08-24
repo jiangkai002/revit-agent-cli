@@ -166,8 +166,11 @@ static void WriteResult(string? resultPath, ExecutorResult result)
 
     // Best-effort stdout echo for direct runs; the CLI MUST read the result FILE,
     // never stdout, because Revit shutdown noise leaks here after the console silencer
-    // (active only during InjectApplication) is disposed.
-    Console.OutputEncoding = Encoding.UTF8;
+    // (active only during InjectApplication) is disposed. Do NOT set OutputEncoding: the
+    // result FILE is already UTF-8 via File.WriteAllText above (independent of the console
+    // CP), and mutating the shared console's output codepage here pollutes the caller's
+    // terminal (left at 65001 → later typed Chinese mojibakes). Echo in whatever the
+    // console already is; the CLI drains+discards this stdout anyway.
     Console.Out.WriteLine(json);
 }
 

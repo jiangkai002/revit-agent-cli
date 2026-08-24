@@ -1,0 +1,6 @@
+{
+  "name": "mep-device-numbers",
+  "description": "机电设备编号合规检查:筛选有'设备编号'参数的构件、值是否非空、值是否重复、参数必须是族实例参数不能是类型参数",
+  "version": "1.0.0",
+  "author": "sample"
+}

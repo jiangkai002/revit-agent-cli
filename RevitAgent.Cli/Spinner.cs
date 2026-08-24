@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace RevitAgent.Cli;
 
 /// <summary>
@@ -84,7 +82,6 @@ public sealed class Spinner : IDisposable
         var i = 0;
         try
         {
-            Console.OutputEncoding = Encoding.UTF8; // belt-and-suspenders; Program.cs already sets this
             while (!_cts.IsCancellationRequested)
             {
                 lock (_lock)

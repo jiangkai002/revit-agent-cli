@@ -55,11 +55,14 @@ public static class SkillCommand
             Console.WriteLine($"(当前未安装任何技能。将技能目录放入: {SkillStore.SkillsDirectory})");
             return 0;
         }
-        Console.WriteLine($"已安装技能 ({skills.Count})，目录: {SkillStore.SkillsDirectory}");
+        var bundled = skills.Count(s => s.Bundled);
+        var user = skills.Count - bundled;
+        Console.WriteLine($"技能 ({skills.Count}：{user} 用户装{(bundled > 0 ? $"、{bundled} 内置只读" : "")})");
         foreach (var s in skills)
         {
             var desc = string.IsNullOrWhiteSpace(s.Description) ? "(无简介)" : s.Description;
-            Console.WriteLine($"  {s.Name} — {desc}");
+            var tag = s.Bundled ? " [内置]" : "";
+            Console.WriteLine($"  {s.Name}{tag} — {desc}");
         }
         return 0;
     }
@@ -97,7 +100,11 @@ public static class SkillCommand
 
     private static int ShowPath()
     {
-        Console.WriteLine(SkillStore.SkillsDirectory);
+        Console.WriteLine($"用户技能目录: {SkillStore.SkillsDirectory}");
+        var bundled = SkillStore.BundledSkillsDirectory;
+        Console.WriteLine(bundled is null
+            ? "内置技能(只读): (随包未提供)"
+            : $"内置技能(只读): {bundled}");
         return 0;
     }
 
@@ -108,13 +115,14 @@ public static class SkillCommand
         Console.WriteLine();
         Console.WriteLine("子命令:");
         Console.WriteLine("  install <url>  从 zip URL 安装技能（http/https）");
-        Console.WriteLine("  list            列出已安装技能");
+        Console.WriteLine("  list            列出已安装技能（含 [内置] 只读集）");
         Console.WriteLine("  show <name>     查看技能的 manifest 与指引正文");
-        Console.WriteLine("  remove <name>   移除技能");
-        Console.WriteLine("  path            显示技能目录路径");
+        Console.WriteLine("  remove <name>   移除用户技能（内置只读不可移除，可装同名覆盖）");
+        Console.WriteLine("  path            显示用户与内置技能目录路径");
         Console.WriteLine();
-        Console.WriteLine($"技能目录: {SkillStore.SkillsDirectory}");
-        Console.WriteLine("可用环境变量 REVIT_AGENT_SKILLS_ROOT 覆盖目录（便于团队共享）。");
+        Console.WriteLine($"用户技能目录: {SkillStore.SkillsDirectory}");
+        Console.WriteLine($"内置技能(只读): {SkillStore.BundledSkillsDirectory ?? "(随包未提供)"}");
+        Console.WriteLine("可用环境变量 REVIT_AGENT_SKILLS_ROOT 覆盖用户目录（便于团队共享）。内置随包只读、不可移除。");
         return 1;
     }
 }

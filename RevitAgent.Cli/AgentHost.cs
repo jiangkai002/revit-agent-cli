@@ -22,25 +22,43 @@ public sealed class AgentHost
 {
     private readonly AgentConfig _config;
     private readonly string _modelOverride;
-    private readonly IReadOnlyList<string> _modelPaths;
+    private readonly IReadOnlyList<string> _initialModelPaths; // the entering batch; "/rvt all" restores to this
+    private IReadOnlyList<string> _modelPaths; // current effective batch; mutable via SetModelPaths (/rvt), read by the tool wrapper
     private readonly int _revitVersion;
 
     private ChatClientAgent? _agent;
     private AgentSession? _session;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private volatile Spinner? _spinner; // per AskAsync call; read by the tool wrapper (may run on a framework thread)
+    private CancellationToken _cancelToken; // per AskAsync call; read by the tool wrapper so Ctrl+C cancels the in-flight executor wait. Plain field — CancellationToken (a struct w/ a reference) can't be `volatile`; the async/await happens-before edge when the framework schedules the delegate guarantees the write is visible.
 
     public AgentHost(AgentConfig config, string? modelOverride, IReadOnlyList<string> modelPaths, int revitVersion)
     {
         _config = config;
         _modelOverride = modelOverride ?? string.Empty;
+        _initialModelPaths = modelPaths;
         _modelPaths = modelPaths;
         _revitVersion = revitVersion;
     }
 
+    /// <summary>The batch of models active when the session started; "/rvt all" restores to it.</summary>
+    public IReadOnlyList<string> InitialModelPaths => _initialModelPaths;
+
+    /// <summary>The currently effective model batch (mutable via the /rvt REPL command); the tool
+    /// wrapper runs Execute once per model in this list. Read by the tool wrapper during a turn,
+    /// written by SetModelPaths only between turns (at the REPL prompt), so the read is race-free.</summary>
+    public IReadOnlyList<string> CurrentModelPaths => _modelPaths;
+
+    /// <summary>Switch the effective model batch (from the /rvt REPL command).</summary>
+    public void SetModelPaths(IReadOnlyList<string> paths) => _modelPaths = paths;
+
+    /// <summary>Restore the effective batch to the entering batch (the "/rvt all" case).</summary>
+    public void ResetModelPaths() => _modelPaths = _initialModelPaths;
+
     public async Task<string> AskAsync(string request, CancellationToken ct)
     {
         var agent = await GetAgentAsync(ct);
+        _cancelToken = ct; // the tool delegates read this so Ctrl+C can cancel the in-flight executor wait
         _session ??= await agent.CreateSessionAsync(conversationId: null!, ct);
 
         // Spinner animates during gaps (notably the ~20s headless Revit execution);
@@ -169,7 +187,7 @@ public sealed class AgentHost
             (Func<string, Task<string>>)(async source =>
             {
                 _spinner?.MarkExecuting();
-                try { return await tool.RunAsync(source, _modelPaths, _revitVersion, CancellationToken.None); }
+                try { return await tool.RunAsync(source, _modelPaths, _revitVersion, _cancelToken); }
                 finally { _spinner?.SetStage("汇总结果中"); }
             }),
             name: "RunRevitCode",
@@ -208,7 +226,7 @@ public sealed class AgentHost
                 _spinner?.MarkExecuting();
                 try
                 {
-                    var envelope = await tool.RunAsync(source, _modelPaths, _revitVersion, CancellationToken.None);
+                    var envelope = await tool.RunAsync(source, _modelPaths, _revitVersion, _cancelToken);
                     return ExportCsvTool.Export(envelope, path);
                 }
                 finally { _spinner?.SetStage("汇总结果中"); }

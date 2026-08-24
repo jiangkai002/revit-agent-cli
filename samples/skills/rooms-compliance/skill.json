@@ -1,0 +1,6 @@
+{
+  "name": "rooms-compliance",
+  "description": "建筑运维房间合规检查:是否放置、是否封闭、是否有'房间编号'参数、参数是否有值、编号值是否重复",
+  "version": "1.0.0",
+  "author": "sample"
+}

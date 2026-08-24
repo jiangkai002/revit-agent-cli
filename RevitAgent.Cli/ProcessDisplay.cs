@@ -7,9 +7,11 @@ namespace RevitAgent.Cli;
 /// Renders the agent's working process (reasoning, tool calls, tool results) as small
 /// gray dim lines so the user can watch what the agent is doing, distinct from the final
 /// answer (printed in normal color by the command, never here). Streams reasoning tokens
-/// live; buffers per-turn <see cref="Microsoft.Extensions.AI.TextContent"/> so text that
-/// precedes a tool call shows as a gray "preamble" line, while the trailing text (no
-/// subsequent tool call) is the final answer, returned to the caller as a string.
+/// into a fixed 3-line window that scrolls in place (only the last 3 display-width-wrapped
+/// lines stay visible), so a long chain-of-thought can't flood the screen; buffers per-turn
+/// <see cref="Microsoft.Extensions.AI.TextContent"/> so text that precedes a tool call shows
+/// as a gray "preamble" line, while the trailing text (no subsequent tool call) is the final
+/// answer, returned to the caller as a string.
 /// <para/>
 /// Coordinates with a <see cref="Spinner"/>: the spinner animates during gaps (notably the
 /// ~20s Revit execution), and is paused around each printed line so its \r writes can't
@@ -21,7 +23,10 @@ namespace RevitAgent.Cli;
 internal sealed class ProcessDisplay
 {
     private readonly Spinner? _spinner;
-    private bool _reasoningOpen; // a reasoning line is open (spinner paused, no trailing newline)
+    private bool _reasoningOpen; // a reasoning box is open (spinner paused, no trailing newline)
+    private readonly StringBuilder _reasoningBuf = new(); // accumulated reasoning text (box path)
+    private int _boxLinesDrawn; // visible lines currently on screen for the reasoning box (cursor-up math)
+    private const int ReasoningBoxLines = 3; // fixed height of the scrolling reasoning window
 
     // REVIT_AGENT_DEBUG_PROCESS=1 forces the process lines to render even when stdout
     // is redirected, so `revit-agent run ... > log.txt` captures the full reasoning /
@@ -37,19 +42,42 @@ internal sealed class ProcessDisplay
         ConsoleAnsi.EnsureEnabled();
     }
 
-    /// <summary>Live-stream a reasoning token chunk in gray (begins a segment with a marker).</summary>
+    /// <summary>Live-stream a reasoning token chunk into a fixed 3-line gray window that
+    /// scrolls in place (only the last 3 lines stay visible). Falls back to a single
+    /// growing line when VT is unavailable (redirected output / debug log / tiny terminal).</summary>
     public void WriteReasoning(string chunk)
     {
         if (!ShouldRender || string.IsNullOrEmpty(chunk)) return;
-        // Collapse internal newlines so a reasoning segment stays one visual line.
-        chunk = chunk.Replace("\r", " ").Replace("\n", " ");
+
+        int width = Console.BufferWidth > 0 ? Console.BufferWidth : 80;
+        if (!ConsoleAnsi.Enabled || width < 20)
+        {
+            // No VT (or too narrow) -> can't rewrite a box in place. Collapse newlines and
+            // append to one gray line. The debug-log path (REVIT_AGENT_DEBUG_PROCESS=1 on a
+            // pipe) lands here too, capturing the full trace as plain text without ANSI
+            // cursor noise -- ideal for `revit-agent run ... > log.txt`.
+            chunk = chunk.Replace("\r", " ").Replace("\n", " ");
+            if (!_reasoningOpen)
+            {
+                _spinner?.Pause();      // freeze spinner, clear its line
+                WriteGray("▎ ");        // begin the reasoning line on the cleared line
+                _reasoningOpen = true;
+            }
+            WriteGray(chunk);
+            return;
+        }
+
+        // VT path: render the reasoning into a fixed 3-line window that scrolls in place.
+        // Only the last 3 (display-width-wrapped) lines stay visible; older text scrolls
+        // off the top, so a long chain-of-thought can't flood the screen.
+        _reasoningBuf.Append(chunk);
         if (!_reasoningOpen)
         {
-            _spinner?.Pause();       // freeze spinner, clear its line
-            WriteGray("▎ ");          // begin the reasoning line on the cleared line
+            _spinner?.Pause();          // freeze spinner for the whole segment
             _reasoningOpen = true;
+            _boxLinesDrawn = 0;
         }
-        WriteGray(chunk);
+        RenderReasoningBox();
     }
 
     /// <summary>Assistant text emitted before a tool call — show as a gray "thinking" line.</summary>
@@ -88,8 +116,10 @@ internal sealed class ProcessDisplay
     {
         if (_reasoningOpen)
         {
-            Console.WriteLine();
+            Console.WriteLine();        // move past the box so the next line prints below it
             _reasoningOpen = false;
+            _reasoningBuf.Clear();
+            _boxLinesDrawn = 0;
         }
     }
 
@@ -102,6 +132,80 @@ internal sealed class ProcessDisplay
     {
         WriteGray(s);
         Console.WriteLine();
+    }
+
+    /// <summary>Redraw the reasoning box in place: wrap the accumulated text to the terminal
+    /// width, keep only the last <see cref="ReasoningBoxLines"/> lines, move the cursor to
+    /// the top of the previously-drawn box, clear the region, and reprint. The box is always
+    /// the last thing on screen (spinner paused, tool calls come after EndReasoning), so
+    /// clearing to end-of-screen can't clobber anything.</summary>
+    private void RenderReasoningBox()
+    {
+        int width = Console.BufferWidth > 0 ? Console.BufferWidth : 80;
+        int wrap = Math.Max(10, width - 2); // reserve 2 cols for the "▎ " / "  " gutter
+
+        var lines = WrapLines(_reasoningBuf.ToString(), wrap);
+        int take = Math.Min(ReasoningBoxLines, lines.Count);
+        int start = lines.Count - take;
+
+        if (_boxLinesDrawn > 0)
+            Console.Write($"\x1b[{_boxLinesDrawn - 1}A"); // cursor up to the box's top line
+        Console.Write("\r\x1b[J");                          // col 0, then clear to end-of-screen
+
+        for (int i = 0; i < take; i++)
+        {
+            string prefix = i == 0 ? "▎ " : "  ";          // marker on the top visible line, indent the rest
+            Console.Write($"\x1b[2;90m{prefix}{lines[start + i]}\x1b[0m");
+            if (i < take - 1) Console.Write("\r\n");
+        }
+        _boxLinesDrawn = take;
+    }
+
+    /// <summary>Split text into display-width-bounded lines (newlines preserved as breaks,
+    /// each paragraph hard-wrapped at <paramref name="maxDisplayWidth"/>). East Asian wide
+    /// chars count as 2 columns so CJK reasoning doesn't overflow the 3-line window.</summary>
+    private static List<string> WrapLines(string text, int maxDisplayWidth)
+    {
+        var result = new List<string>();
+        foreach (var para in text.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n'))
+        {
+            if (string.IsNullOrWhiteSpace(para)) continue;
+            var line = new StringBuilder();
+            int lineW = 0;
+            foreach (var ch in para)
+            {
+                int cw = CharWidth(ch);
+                if (lineW + cw > maxDisplayWidth && line.Length > 0)
+                {
+                    result.Add(line.ToString().TrimEnd());
+                    line.Clear();
+                    lineW = 0;
+                }
+                line.Append(ch);
+                lineW += cw;
+            }
+            if (line.Length > 0) result.Add(line.ToString().TrimEnd());
+        }
+        return result;
+    }
+
+    // East Asian wide/fullwidth chars take 2 console columns, everything else 1. Drives the
+    // box wrap so CJK reasoning text stays inside the fixed 3-line window.
+    private static int CharWidth(char ch)
+    {
+        if (ch < 0x1100) return 1;
+        if (ch <= 0x115F) return 2;
+        if (ch >= 0x2E80 && ch <= 0x303E) return 2;
+        if (ch >= 0x3040 && ch <= 0x33BF) return 2;
+        if (ch >= 0x3400 && ch <= 0x4DBF) return 2;
+        if (ch >= 0x4E00 && ch <= 0x9FFF) return 2;
+        if (ch >= 0xA000 && ch <= 0xA4CF) return 2;
+        if (ch >= 0xAC00 && ch <= 0xD7A3) return 2;
+        if (ch >= 0xF900 && ch <= 0xFAFF) return 2;
+        if (ch >= 0xFE30 && ch <= 0xFE4F) return 2;
+        if (ch >= 0xFF00 && ch <= 0xFF60) return 2;
+        if (ch >= 0xFFE0 && ch <= 0xFFE6) return 2;
+        return 1;
     }
 
     /// <summary>Flatten to one line and truncate long values (e.g. a C# source arg or JSON result).</summary>

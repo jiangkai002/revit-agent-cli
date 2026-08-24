@@ -12,6 +12,10 @@ payload-fragment.wxs
 
 # Scratch / test residue
 .scratch_result.json
+.omo/
+.tmpbuild-rvtexecutor-*/
+site.zip
+samples/skills/*.zip
 
 # IDE / OS / tooling
 .vs/
@@ -23,3 +27,10 @@ payload-fragment.wxs
 # Nice3point injector SOURCE — not part of this repo; prebuilt DLL is committed under lib/.
 # (lib/ itself is tracked — it holds the injector binaries.)
 Nice3point.Revit.Injector/
+
+# Local-only preview/landing page variants — never tracked, never pushed.
+# (The pushed site is index.html on the main branch / GitHub Pages.)
+intro.html
+docs.html
+skills.html
+web.html

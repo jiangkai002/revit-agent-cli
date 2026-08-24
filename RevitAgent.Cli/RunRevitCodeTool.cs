@@ -23,6 +23,7 @@ public sealed class RunRevitCodeTool
     {
         await Gate.WaitAsync(ct);
         string? tempDir = null;
+        Process? process = null;
         try
         {
             var exePath = ExecutorLocator.Find(revitVersion);
@@ -54,7 +55,7 @@ public sealed class RunRevitCodeTool
             psi.ArgumentList.Add(sourcePath);
             psi.ArgumentList.Add(resultPath);
 
-            using var process = new Process { StartInfo = psi };
+            process = new Process { StartInfo = psi };
             var stderr = new StringBuilder();
             process.ErrorDataReceived += (_, e) =>
             {
@@ -79,12 +80,25 @@ public sealed class RunRevitCodeTool
                 $"执行器退出码 {process.ExitCode} 但未生成结果文件。\nstderr:\n{stderr}",
                 "top");
         }
+        catch (OperationCanceledException)
+        {
+            // Ctrl+C while the executor runs: ct cancelled -> WaitForExitAsync threw, but the
+            // subprocess keeps running (can't rely on the OS group signal through CREATE_NO_WINDOW
+            // + redirected stdio). Kill the whole Revit tree explicitly so it can't orphan, then
+            // let the cancellation propagate up to abort the agent loop.
+            if (process is not null && !process.HasExited)
+            {
+                try { process.Kill(entireProcessTree: true); } catch { }
+            }
+            throw;
+        }
         catch (Exception ex)
         {
             return SynthesizeError(ex.GetType().FullName ?? "Exception", ex.Message, "top", ex.StackTrace);
         }
         finally
         {
+            process?.Dispose();
             Gate.Release();
             if (tempDir is not null)
             {

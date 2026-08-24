@@ -40,7 +40,8 @@ RevitAgent 用双进程绕开这个限制：
 
 ## 其余能力
 
-- 技能（skills）：把某个领域的约定、清单、代码模板打包成一个 skill，按需加载。目录里只放名字和一句话描述，需要时再拉全文，不占基础提示。
+- 技能（skills）：把某个领域的约定、清单、代码模板打包成一个 skill，按需加载——目录里只放名字和一句话描述，需要时再拉全文，不占基础提示。**自带 5 个示例技能（房间审计、建筑运维房间合规、MEP 设备编号 / 族类别 / 连接器检查），随包只读内置，开箱即用**；也能用 `revit-agent skill install <url>` 从 zip URL 安装第三方技能，`skill list / show / remove / path` 管理。
+- 交互选模型：`chat` 多轮会话里输入 `/rvt`，弹出 Claude 式多选列表（↑↓ 移动、Space 切换、A 全选、Enter 确认、Esc 取消），后续提问只作用于勾选的模型；`/rvt all` 恢复全部。也支持 `/rvt 1`、`/rvt 文件名` 等文本快捷方式。
 - 导出 CSV：模型参数之类的表格数据可以直接导成带 BOM 的 UTF-8 CSV，Excel 能直接开。多模型时首列是模型文件名，各模型的行拼在一起。
 - 进度显示：跑的时候在终端用灰色实时显示模型的推理、工具调用、返回结果。那段约 20 秒的 Revit 启动空窗会有动画过渡。
 
@@ -74,11 +75,17 @@ setx REVIT_AGENT_API_KEY "sk-..."
 # 让大模型按需求生成并执行代码
 revit-agent run "检查模型中有没有房间" --version 2022 --model-path "D:\Models\MyModel.rvt"
 
-# 多轮交互
-revit-agent chat --model-path "D:\Models\MyModel.rvt"
+# 多轮交互（会话里输 /rvt 弹出模型多选，只对勾选的模型提问）
+revit-agent chat --model-path "D:\Models"
 
-# 直接跑一段手写代码（不经过大模型，用来测试执行链路）
+# 列出技能（自带 5 个随包只读技能，标 [内置]）
+revit-agent skill list
+
+# 直接跑一段手写代码（不经过大模型、免 API 密钥，用来测试执行链路）
 revit-agent exec samples\RoomCheck.cs --version 2022 --model-path "D:\Models\MyModel.rvt"
+
+# 直接跑某个技能模板（同样不经过大模型、免密钥）
+revit-agent exec samples\skills\room-audit\templates\RoomCheck.cs --version 2022 --model-path "D:\Models\MyModel.rvt"
 
 # 不指定模型路径，自动扫当前目录下所有 .rvt，一个会话顺序跑完
 cd D:\Models

@@ -1,0 +1,6 @@
+{
+  "name": "mep-device-connectors",
+  "description": "机电设备连接器合规检查:设备是否有 connector 系统、有 connector、connector 是否已连接(未连接=问题)",
+  "version": "1.0.0",
+  "author": "sample"
+}
