@@ -16,8 +16,8 @@
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package Name="RevitAgent"
-           Manufacturer="RevitAgent"
-           Version="1.0.0"
+           Manufacturer="Nice3Point"
+           Version="1.0.3"
            ProductCode="*"
            UpgradeCode="AEF95623-D4A4-422E-85CC-C19C37900808"
            Language="1033"
@@ -29,12 +29,17 @@
     <MajorUpgrade Schedule="afterInstallValidate"
                   DowngradeErrorMessage="A newer version of RevitAgent is already installed." />
 
+    <!-- Shared application identity for Add/Remove Programs and installed shortcuts. -->
+    <Icon Id="ProductIcon" SourceFile="RevitAgent.Gui\Assets\RevitAgent.ico" />
+    <Property Id="ARPPRODUCTICON" Value="ProductIcon" />
+
     <!-- Embed the cabinet so the MSI is a single self-contained file. -->
     <MediaTemplate EmbedCab="yes" />
 
     <Feature Id="ProductFeature" Title="RevitAgent" Level="1">
       <ComponentGroupRef Id="PayloadFiles" />
       <ComponentRef Id="PathEnv" />
+      <ComponentRef Id="GuiShortcut" />
     </Feature>
   </Package>
 
@@ -65,6 +70,34 @@
                      Action="set"
                      System="yes"
                      Separator=";" />
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+
+  <!-- Start Menu shortcut for the GUI (RevitAgent.Gui.exe, harvested into the payload by
+       build-msi.ps1's GUI publish). Same keypath pattern as PathEnv above: a shortcut-only
+       component needs a registry keypath; the HKLM value doubles as an install marker.
+       RemoveFolder cleans the Start Menu dir on uninstall; WorkingDirectory=INSTALLFOLDER
+       keeps the exe's working directory at the install root. -->
+  <Fragment>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ShortcutDir" Name="RevitAgent" />
+    </StandardDirectory>
+    <DirectoryRef Id="ShortcutDir">
+      <Component Id="GuiShortcut" Bitness="always64">
+        <Shortcut Id="GuiStartMenuShortcut"
+                  Name="RevitAgent"
+                  Description="RevitAgent 桌面智能体"
+                  Target="[INSTALLFOLDER]RevitAgent.Gui.exe"
+                  Icon="ProductIcon"
+                  WorkingDirectory="INSTALLFOLDER" />
+        <RemoveFolder Id="RemoveShortcutDir" On="uninstall" />
+        <RegistryValue Root="HKLM"
+                       Key="SOFTWARE\RevitAgent"
+                       Name="GuiShortcut"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
       </Component>
     </DirectoryRef>
   </Fragment>

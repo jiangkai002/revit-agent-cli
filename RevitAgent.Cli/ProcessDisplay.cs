@@ -49,7 +49,13 @@ internal sealed class ProcessDisplay
     {
         if (!ShouldRender || string.IsNullOrEmpty(chunk)) return;
 
-        int width = Console.BufferWidth > 0 ? Console.BufferWidth : 80;
+        // BufferWidth throws "句柄无效" (invalid handle) when stdout is redirected: a pipe/file
+        // is not a console screen buffer, so querying its size fails. The REVIT_AGENT_DEBUG_PROCESS
+        // redirect path forces ShouldRender=true AND the model may emit reasoning, landing here on
+        // a pipe. The non-VT fallback below is taken whenever ConsoleAnsi is off (always on a pipe),
+        // so it never uses `width` for wrapping — feed 80 on redirect and only touch the real
+        // console handle when a buffer actually exists. Real-console behavior is unchanged.
+        int width = Console.IsOutputRedirected ? 80 : (Console.BufferWidth > 0 ? Console.BufferWidth : 80);
         if (!ConsoleAnsi.Enabled || width < 20)
         {
             // No VT (or too narrow) -> can't rewrite a box in place. Collapse newlines and

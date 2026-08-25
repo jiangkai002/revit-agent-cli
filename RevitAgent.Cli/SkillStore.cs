@@ -17,6 +17,10 @@ public sealed class SkillManifest
     public string Description { get; set; } = "";
     public string Version { get; set; } = "1.0.0";
     public string Author { get; set; } = "";
+    /// <summary>Optional tags grouping skills into a series. When the user's request matches a tag
+    /// shared by multiple skills, the agent loads ALL skills with that tag and runs them one by
+    /// one — each is a distinct check dimension. See SystemPrompt "Skill series (tags)".</summary>
+    public List<string> Tags { get; set; } = new();
     /// <summary>True for read-only skills shipped with the tool (auto-discovered beside the exe,
     /// see BundledSkillsDirectory). Set by ListInstalled; never persisted in skill.json. A
     /// user-installed skill of the same name overrides the bundled one, so the override is
@@ -112,7 +116,8 @@ public static class SkillStore
         return dir is null ? null : LoadSkillBodyFromDir(dir);
     }
 
-    /// <summary>Install a skill from a zip URL. Extracts, validates (skill.json with name + SKILL.md), places under skills dir.</summary>
+    /// <summary>Install a skill from a zip URL. Downloads it, then uses the same validation and
+    /// installation pipeline as a local zip.</summary>
     public static async Task<(bool Ok, string Message)> InstallFromUrlAsync(string url)
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
@@ -121,50 +126,15 @@ public static class SkillStore
             return (false, $"无效的 URL: {url}（仅支持 http/https）");
         }
 
-        var tempRoot = Path.Combine(Path.GetTempPath(), "revit-agent-skill-" + Guid.NewGuid().ToString("N"));
-        var zipPath = tempRoot + ".zip";
+        var zipPath = Path.Combine(Path.GetTempPath(), "revit-agent-skill-" + Guid.NewGuid().ToString("N") + ".zip");
         try
         {
-            Directory.CreateDirectory(tempRoot);
-
-            // Download to a file sibling to the extract dir (so the zip itself isn't an extract entry).
             using (var fs = File.Create(zipPath))
             using (var stream = await s_http.GetStreamAsync(uri))
             {
                 await stream.CopyToAsync(fs);
             }
-
-            ZipFile.ExtractToDirectory(zipPath, tempRoot);
-
-            // Locate skill.json: at the extract root, or one level deep (GitHub codeload zipball wraps in <repo>-<ref>/).
-            string? sourceDir = File.Exists(Path.Combine(tempRoot, "skill.json")) ? tempRoot : null;
-            if (sourceDir is null)
-            {
-                foreach (var sub in Directory.GetDirectories(tempRoot))
-                {
-                    if (File.Exists(Path.Combine(sub, "skill.json"))) { sourceDir = sub; break; }
-                }
-            }
-            if (sourceDir is null) return (false, "压缩包内未找到 skill.json");
-
-            var manifest = TryReadManifest(sourceDir);
-            if (manifest is null || string.IsNullOrWhiteSpace(manifest.Name))
-                return (false, "skill.json 缺少 name 字段或为空");
-
-            if (!File.Exists(Path.Combine(sourceDir, "SKILL.md")))
-                return (false, "技能缺少 SKILL.md（必需）");
-
-            Directory.CreateDirectory(SkillsDirectory);
-            var target = Path.Combine(SkillsDirectory, manifest.Name);
-            if (Directory.Exists(target))
-            {
-                Directory.Delete(target, recursive: true); // overwrite same-named skill
-            }
-            CopyDirectory(sourceDir, target);
-
-            var msg = $"已安装技能: {manifest.Name}";
-            if (!string.IsNullOrWhiteSpace(manifest.Description)) msg += $" — {manifest.Description}";
-            return (true, msg);
+            return await Task.Run(() => InstallZipArchive(zipPath));
         }
         catch (HttpRequestException ex)
         {
@@ -185,8 +155,25 @@ public static class SkillStore
         finally
         {
             try { if (File.Exists(zipPath)) File.Delete(zipPath); } catch { }
-            try { if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true); } catch { }
         }
+    }
+
+    /// <summary>Install a skill from a local zip file.</summary>
+    public static Task<(bool Ok, string Message)> InstallFromZipAsync(string zipPath)
+    {
+        if (string.IsNullOrWhiteSpace(zipPath))
+            return Task.FromResult((false, "请选择技能 ZIP 文件"));
+
+        string fullPath;
+        try { fullPath = Path.GetFullPath(zipPath.Trim()); }
+        catch (Exception ex) { return Task.FromResult((false, $"无效的文件路径: {ex.Message}")); }
+
+        if (!File.Exists(fullPath))
+            return Task.FromResult((false, $"找不到文件: {fullPath}"));
+        if (!string.Equals(Path.GetExtension(fullPath), ".zip", StringComparison.OrdinalIgnoreCase))
+            return Task.FromResult((false, "仅支持 .zip 技能压缩包"));
+
+        return Task.Run(() => InstallZipArchive(fullPath));
     }
 
     /// <summary>Remove an installed user skill (by folder or manifest name). Bundled read-only
@@ -227,6 +214,66 @@ public static class SkillStore
     }
 
     // ---- helpers ----
+
+    private static (bool Ok, string Message) InstallZipArchive(string zipPath)
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), "revit-agent-skill-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(tempRoot);
+            ZipFile.ExtractToDirectory(zipPath, tempRoot);
+
+            // Accept a manifest at the archive root or inside one wrapping directory. For more
+            // deeply nested archives, locate it recursively, but reject ambiguous multi-skill zips.
+            var manifests = Directory.EnumerateFiles(tempRoot, "skill.json", SearchOption.AllDirectories)
+                .Where(path => !path.Split(Path.DirectorySeparatorChar)
+                    .Any(part => string.Equals(part, "__MACOSX", StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+            if (manifests.Count == 0) return (false, "压缩包内未找到 skill.json");
+            if (manifests.Count > 1) return (false, "压缩包包含多个 skill.json，请每个 ZIP 只放一个技能");
+
+            var sourceDir = Path.GetDirectoryName(manifests[0])!;
+            var manifest = TryReadManifest(sourceDir);
+            if (manifest is null || string.IsNullOrWhiteSpace(manifest.Name))
+                return (false, "skill.json 无法解析，或缺少 name 字段");
+
+            var requestedName = manifest.Name.Trim();
+            var safeName = SanitizeName(requestedName);
+            if (safeName is null
+                || !string.Equals(safeName, requestedName, StringComparison.Ordinal)
+                || requestedName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+                return (false, "skill.json 的 name 含有无效路径或文件名字符");
+
+            if (!File.Exists(Path.Combine(sourceDir, "SKILL.md")))
+                return (false, "技能缺少 SKILL.md（必需）");
+
+            Directory.CreateDirectory(SkillsDirectory);
+            var target = Path.Combine(SkillsDirectory, safeName);
+            if (Directory.Exists(target))
+                Directory.Delete(target, recursive: true); // overwrite same-named user skill
+            CopyDirectory(sourceDir, target);
+
+            var msg = $"已安装技能: {requestedName}";
+            if (!string.IsNullOrWhiteSpace(manifest.Description)) msg += $" — {manifest.Description}";
+            return (true, msg);
+        }
+        catch (InvalidDataException ex)
+        {
+            return (false, $"无效的 ZIP 压缩包: {ex.Message}");
+        }
+        catch (JsonException ex)
+        {
+            return (false, $"skill.json 解析失败: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"安装失败: {ex.Message}");
+        }
+        finally
+        {
+            try { if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true); } catch { }
+        }
+    }
 
     private static string? ResolveSkillDir(string name)
     {

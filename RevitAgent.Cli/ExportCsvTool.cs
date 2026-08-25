@@ -15,10 +15,10 @@ internal static class ExportCsvTool
 {
     /// <summary>
     /// Parse the RunRevitCode JSON envelope, concatenate every model's Data rows into one CSV with
-    /// a leading Model column, write to <paramref name="path"/>. Returns a concise Chinese status
-    /// message for the agent.
+    /// a leading Model column, write to <paramref name="path"/>. Relative paths are resolved
+    /// beside the first active Revit model. Returns a concise Chinese status message for the agent.
     /// </summary>
-    public static string Export(string envelopeJson, string path)
+    public static string Export(string envelopeJson, string path, IReadOnlyList<string> modelPaths)
     {
         using var doc = JsonDocument.Parse(envelopeJson);
         var root = doc.RootElement;
@@ -106,19 +106,39 @@ internal static class ExportCsvTool
 
         try
         {
-            var dir = Path.GetDirectoryName(path);
+            var outputPath = ResolveOutputPath(path, modelPaths);
+            var dir = Path.GetDirectoryName(outputPath);
             if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
             // UTF-8 with BOM so Excel renders Chinese (房间名/参数名) correctly.
-            File.WriteAllText(path, sb.ToString(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+            File.WriteAllText(outputPath, sb.ToString(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
             var colCount = allObjects ? columns.Count : 2;
             var modelNote = usedModels > 1 ? $"，来自 {usedModels} 个模型" : "";
             var skipNote = failedModels > 0 ? $"（跳过 {failedModels} 个失败模型）" : "";
-            return $"已导出 {rows.Count} 行（{colCount} 列{modelNote}）到 {path}{skipNote}";
+            return $"已导出 {rows.Count} 行（{colCount} 列{modelNote}）到 {outputPath}{skipNote}";
         }
         catch (Exception ex)
         {
             return $"写入 CSV 失败: {ex.Message}";
         }
+    }
+
+    /// <summary>Keep an explicitly absolute path; otherwise place the CSV beside the first
+    /// selected model. A current-directory fallback only applies to defensive calls without a
+    /// model, which normal chat/export flows never make.</summary>
+    internal static string ResolveOutputPath(string path, IReadOnlyList<string> modelPaths)
+    {
+        var requestedPath = string.IsNullOrWhiteSpace(path) ? "revit-export.csv" : path.Trim();
+        if (Path.IsPathFullyQualified(requestedPath))
+            return Path.GetFullPath(requestedPath);
+
+        var firstModel = modelPaths.FirstOrDefault(model => !string.IsNullOrWhiteSpace(model));
+        var modelDirectory = firstModel is null
+            ? Environment.CurrentDirectory
+            : Path.GetDirectoryName(Path.GetFullPath(firstModel));
+        if (string.IsNullOrWhiteSpace(modelDirectory))
+            modelDirectory = Environment.CurrentDirectory;
+
+        return Path.GetFullPath(Path.Combine(modelDirectory, requestedPath));
     }
 
     private static string Format(JsonElement el)

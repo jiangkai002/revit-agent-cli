@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RevitAgent — 无头 Revit 智能体 CLI</title>
-<meta name="description" content="自然语言 → 生成 Revit 二次开发 C# → 无头编译执行 → 自然语言回答。不用打开 Revit。">
+<title>RevitAgent — Windows Revit AI 智能工作台</title>
+<meta name="description" content="Windows Fluent GUI + CLI：用自然语言分析 Revit 模型，自动生成并无头执行 C#，管理技能并导出 CSV。">
 <style>
   :root{
     --bg:#0a0a0d; --bg2:#0e0e12; --term:#0c0d11;
     --border:#21222b; --text:#d6d6db; --head:#f4f4f6; --muted:#8a8a93;
-    --green:#4ade80; --violet:#a78bfa; --blue:#60a5fa; --dim:#6b6b73;
+    --green:#4ade80; --violet:#1683ff; --blue:#69bfff; --dim:#6b6b73;
     --mono:ui-monospace,"Cascadia Code","SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
     --sans:system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
   }
@@ -18,7 +18,7 @@
   body{
     font-family:var(--sans); color:var(--text); line-height:1.6;
     background:
-      radial-gradient(ellipse 70% 45% at 50% 8%, rgba(124,92,255,.10), transparent 60%),
+      radial-gradient(ellipse 70% 45% at 50% 8%, rgba(22,131,255,.12), transparent 60%),
       radial-gradient(ellipse 50% 40% at 60% 30%, rgba(74,222,128,.05), transparent 60%),
       var(--bg);
     min-height:100vh; -webkit-font-smoothing:antialiased;
@@ -31,8 +31,7 @@
     max-width:1040px;margin:0 auto;padding:22px 24px;
   }
   .brand{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--head);letter-spacing:.2px}
-  .brand .mark{width:15px;height:15px;border-radius:4px;transform:rotate(45deg);
-    background:linear-gradient(135deg,var(--violet),var(--blue));box-shadow:0 0 16px rgba(124,92,255,.4)}
+  .brand .mark{width:28px;height:28px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(22,131,255,.34))}
   .brand b{font-size:1.05rem}
   .brand span{color:var(--muted);font-weight:500;font-size:.78rem;border:1px solid var(--border);padding:2px 7px;border-radius:5px;margin-left:4px}
   nav.links{display:flex;gap:26px;font-size:.92rem;color:var(--muted)}
@@ -45,7 +44,7 @@
   main{max-width:1040px;margin:0 auto;padding:28px 24px 64px}
   .hero{text-align:center;display:flex;flex-direction:column;align-items:center}
   .eyebrow{color:var(--muted);font-size:.85rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px}
-  h1{font-size:clamp(2rem,4.6vw,3.1rem);line-height:1.18;font-weight:800;color:var(--head);letter-spacing:-.5px;max-width:14ch}
+  h1{font-size:clamp(2rem,4.6vw,3.1rem);line-height:1.18;font-weight:800;color:var(--head);letter-spacing:-.5px;max-width:760px}
   h1 .arrow{color:var(--violet);font-weight:700}
   .sub{color:var(--muted);font-size:1.02rem;max-width:620px;margin:18px auto 0}
   .install{margin:24px auto 0;display:flex;flex-direction:column;align-items:center;gap:8px}
@@ -54,8 +53,30 @@
   .install .op{color:var(--violet)}
   .install .hint{color:var(--dim);font-size:.78rem}
 
+  /* desktop app preview */
+  .desktop{margin:34px auto 0;width:min(940px,100%);text-align:left}
+  .desktop-copy{text-align:center;max-width:680px;margin:0 auto 18px}
+  .desktop-copy h2{color:var(--head);font-size:1.25rem;margin-bottom:5px}
+  .desktop-copy p{color:var(--muted);font-size:.9rem}
+  .app-window{height:430px;border:1px solid #343640;border-radius:12px;overflow:hidden;background:#202124;
+    box-shadow:0 26px 70px -26px rgba(0,0,0,.9),0 0 0 1px rgba(22,131,255,.08)}
+  .app-title{height:42px;display:flex;align-items:center;padding:0 14px;border-bottom:1px solid #303136;color:#f3f3f3;font-size:.8rem}
+  .app-title img{width:20px;height:20px;margin-right:8px}.window-buttons{margin-left:auto;letter-spacing:14px;color:#b9bbc1}
+  .app-body{height:calc(100% - 42px);display:grid;grid-template-columns:170px 1fr}
+  .app-nav{background:#1b1c1e;border-right:1px solid #2b2c30;padding:18px 10px;display:flex;flex-direction:column;gap:7px}
+  .nav-item{padding:9px 11px;border-radius:6px;color:#c9cbd0;font-size:.82rem}.nav-item.active{background:#2b2c30;color:#fff;border-left:3px solid var(--blue)}
+  .nav-settings{margin-top:auto}.app-chat{padding:18px 22px;display:grid;grid-template-rows:auto 1fr auto;min-width:0}
+  .app-chat h3{color:#fff;font-size:1.05rem}.app-chat .caption{color:#85878e;font-size:.74rem;margin-top:2px}
+  .messages{padding:16px 0;overflow:hidden;display:flex;flex-direction:column;gap:10px}
+  .bubble{max-width:78%;padding:10px 12px;border-radius:12px;font-size:.78rem;line-height:1.55;color:#e6e7e9}
+  .bubble.user{align-self:flex-end;background:#147bd1;border-bottom-right-radius:4px}.bubble.agent{background:#303135;border:1px solid #3b3d42;border-bottom-left-radius:4px}
+  .tool-row{background:#292a2d;border:1px solid #3a3b3f;border-radius:7px;padding:8px 10px;color:#c8cad0;font-family:var(--mono);font-size:.7rem}
+  .composer{border:1px solid #45474e;background:#27282b;border-radius:10px;padding:11px 12px;color:#92949a;font-size:.78rem;display:flex;justify-content:space-between}
+  .composer b{color:#d9eaff;background:#0f6cbd;border-radius:6px;padding:3px 12px;font-weight:600}
+  @media(max-width:640px){.app-body{grid-template-columns:74px 1fr}.app-nav{padding:12px 7px}.nav-item{font-size:0;text-align:center}.nav-item::first-letter{font-size:.9rem}.app-chat{padding:15px}.app-window{height:400px}}
+
   /* terminal */
-  .terminal{margin:30px auto 0;width:min(860px,94vw);text-align:left;
+  .terminal{margin:30px auto 0;width:min(860px,100%);text-align:left;
     background:var(--term);border:1px solid var(--border);border-radius:12px;overflow:hidden;
     box-shadow:0 24px 60px -20px rgba(0,0,0,.7), 0 0 0 1px rgba(124,92,255,.08), 0 0 80px -30px rgba(124,92,255,.25)}
   .chrome{display:flex;align-items:center;gap:8px;padding:11px 14px;background:linear-gradient(var(--bg2),#101015);border-bottom:1px solid var(--border)}
@@ -83,7 +104,7 @@
   @media(prefers-reduced-motion:reduce){ .cursor{animation:none} }
 
   /* features */
-  .features{margin:64px auto 0;display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .features{margin:64px auto 0;display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
   @media(max-width:860px){ .features{grid-template-columns:repeat(2,1fr)} }
   @media(max-width:520px){ .features{grid-template-columns:1fr} }
   .card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px 18px}
@@ -99,29 +120,57 @@
 </head>
 <body>
   <header>
-    <div class="brand"><span class="mark"></span><b>RevitAgent</b><span>CLI</span></div>
+    <div class="brand"><img class="mark" src="RevitAgent.Gui/Assets/RevitAgent.png" alt=""><b>RevitAgent</b><span>GUI + CLI</span></div>
     <nav class="links">
-      <a href="#features">特性</a>
-      <a href="https://github.com/jiangkai002/revit-agent-cli">文档</a>
-      <a href="https://github.com/jiangkai002/revit-agent-cli">技能</a>
+      <a href="#desktop">桌面端</a>
+      <a href="#features">能力</a>
+      <a href="https://github.com/jiangkai002/revit-agent-cli#readme">文档</a>
     </nav>
     <a class="btn" href="https://github.com/jiangkai002/revit-agent-cli">GitHub ↗</a>
   </header>
 
   <main>
     <section class="hero">
-      <p class="eyebrow">无头 Revit · 智能体 CLI</p>
-      <h1>自然语言 <span class="arrow">→</span> Revit 代码 <span class="arrow">→</span> 模型答案<br>都在终端里</h1>
-      <p class="sub">描述需求，智能体生成 Revit 二次开发 C#，在无头 Revit 里编译并执行，再用自然语言回答你。不用打开 Revit 界面。</p>
+      <p class="eyebrow">Windows Fluent UI · Headless Revit Agent</p>
+      <h1>用自然语言<br>完成 Revit 模型工作</h1>
+      <p class="sub">在 Windows 桌面工作台或终端中描述需求。RevitAgent 自动生成 Revit API C#、无头执行、汇总答案，并把表格结果导出到模型目录。</p>
       <div class="install">
-        <code>git clone https://github.com/jiangkai002/revit-agent-cli <span class="op">&amp;&amp;</span> .\build.ps1</code>
-        <span class="hint">Windows · .NET 10 · 需已安装 Revit 2019–2022</span>
+        <code>powershell -File <span class="op">.\build-msi.ps1</span></code>
+        <span class="hint">单文件 MSI · 自带 .NET/WPF 运行时 · 需已安装 Revit 2019–2022</span>
+      </div>
+
+      <div class="desktop" id="desktop">
+        <div class="desktop-copy">
+          <h2>为长时间模型分析设计的桌面体验</h2>
+          <p>亮暗主题、固定输入区、独立滚动对话、可折叠工具结果，以及统一的模型、技能和服务设置。</p>
+        </div>
+        <div class="app-window" role="img" aria-label="RevitAgent Windows 桌面界面示意">
+          <div class="app-title"><img src="RevitAgent.Gui/Assets/RevitAgent.png" alt="">RevitAgent <span class="window-buttons">— □ ×</span></div>
+          <div class="app-body">
+            <aside class="app-nav">
+              <div class="nav-item active">◯　会话</div>
+              <div class="nav-item">◇　技能</div>
+              <div class="nav-item nav-settings">⚙　设置</div>
+            </aside>
+            <div class="app-chat">
+              <div><h3>智能会话</h3><div class="caption">Revit 2022 · 剧场模型.rvt</div></div>
+              <div class="messages">
+                <div class="bubble user">统计模型中所有吊杆，并整理编号。</div>
+                <div class="bubble agent">我会检查结构构件与设备编号，汇总吊杆类型和数量。</div>
+                <div class="tool-row">› 执行工具 · RunRevitCode · 1546 字符</div>
+                <div class="tool-row">› 工具结果 · 55683 字符</div>
+                <div class="bubble agent">已完成统计，并将 CSV 保存到模型所在目录。</div>
+              </div>
+              <div class="composer"><span>输入关于当前 Revit 模型的问题…</span><b>发送</b></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="terminal" aria-label="revit-agent 演示终端">
         <div class="chrome">
           <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-          <span class="title">revit-agent — bash</span>
+          <span class="title">同一个 Agent 引擎，也可通过 CLI 使用</span>
           <button id="replay" class="replay" type="button">重播</button>
         </div>
         <div id="term"></div>
@@ -130,30 +179,40 @@
 
     <section class="features" id="features">
       <div class="card">
+        <span class="tag">fluent · light/dark</span>
+        <h3>原生 Windows 桌面端</h3>
+        <p>WPF + Fluent UI，支持系统亮暗主题、窗口拖动和完整标题栏；长对话独立滚动，输入区始终固定。</p>
+      </div>
+      <div class="card">
+        <span class="tag">skills · zip</span>
+        <h3>可扩展技能库</h3>
+        <p>5 个领域技能开箱即用，也能从 URL 或本地 ZIP 安装；说明与 C# 模板按需加载，不挤占基础上下文。</p>
+      </div>
+      <div class="card">
+        <span class="tag">csv · excel</span>
+        <h3>模型目录直接交付</h3>
+        <p>表格结果导出为 Excel 友好的 UTF-8 BOM CSV；相对路径自动落到模型目录，多模型自动增加 Model 列。</p>
+      </div>
+      <div class="card">
         <span class="tag">batch</span>
         <h3>多模型批量</h3>
-        <p>一个目录下多个 .rvt，单会话顺序执行——引擎只初始化一次（约 20 秒），而不是每跑一个模型就重启 Revit。</p>
+        <p>一个目录下多个 .rvt 在同一 Revit 会话中顺序执行，引擎只初始化一次，单模型失败不影响其他模型。</p>
       </div>
       <div class="card">
         <span class="tag">2019 – 2022</span>
-        <h3>多版本无头</h3>
-        <p>Revit 2019–2022 都能无头跑：2022+ 走 Initialize_ForAutodeskInternalUseOnly，≤2021 走 Product.Init 回退。</p>
+        <h3>多版本无头执行</h3>
+        <p>支持 Revit 2019–2022，无需打开 Revit 主界面；执行器按安装版本定位真实 Revit API。</p>
       </div>
       <div class="card">
-        <span class="tag">roslyn</span>
-        <h3>现场生成代码</h3>
-        <p>Roslyn 编译 LLM 生成的现代 C#；每模型独立临时副本 + fresh instance，状态不跨模型泄漏。</p>
-      </div>
-      <div class="card">
-        <span class="tag">skills · csv</span>
-        <h3>内置技能 · 导出 · 进度</h3>
-        <p>5 个领域技能随包只读内置（房间审计 / 合规 / MEP 设备编号·族·连接器检查），按需加载；表格一键导 CSV（带 BOM）；灰色实时显示推理、工具调用与结果。</p>
+        <span class="tag">agent · roslyn</span>
+        <h3>代码现场生成</h3>
+        <p>智能体生成现代 C#，Roslyn 即时编译并在模型副本上执行；推理、工具调用与结果在界面中实时呈现。</p>
       </div>
     </section>
   </main>
 
   <footer>
-    <span>RevitAgent · 无头 Revit 智能体</span>
+    <span>RevitAgent · Windows Revit AI 智能工作台</span>
     <a href="https://github.com/jiangkai002/revit-agent-cli">github.com/jiangkai002/revit-agent-cli ↗</a>
   </footer>
 

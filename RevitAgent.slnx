@@ -1,8 +1,6 @@
-{
-  "version": "1.0",
-  "projects": [
-    "Nice3point.Revit.Injector/Nice3point.Revit.Injector.csproj",
-    "RevitAgent.Executor/RevitAgent.Executor.csproj",
-    "RevitAgent.Cli/RevitAgent.Cli.csproj"
-  ]
-}
+<Solution>
+  <Project Path="Nice3point.Revit.Injector/Nice3point.Revit.Injector.csproj" />
+  <Project Path="RevitAgent.Executor/RevitAgent.Executor.csproj" />
+  <Project Path="RevitAgent.Cli/RevitAgent.Cli.csproj" />
+  <Project Path="RevitAgent.Gui/RevitAgent.Gui.csproj" />
+</Solution>

@@ -1,0 +1,63 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>RevitAgent.Gui</AssemblyName>
+    <RootNamespace>RevitAgent.Gui</RootNamespace>
+    <ApplicationIcon>Assets\RevitAgent.ico</ApplicationIcon>
+    <AssemblyTitle>RevitAgent</AssemblyTitle>
+    <Description>AI-powered desktop workspace for Revit model automation.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\RevitAgent.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WPF-UI" Version="4.3.0" />
+    <PackageReference Include="MdXaml" Version="1.27.0" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RevitAgent.Cli\RevitAgent.Cli.csproj" />
+  </ItemGroup>
+
+  <!--
+    The ProjectReference builds the CLI first, which runs its BuildAndStageExecutors target
+    (BeforeTargets="Build"), staging executor-2019..2022\ and skills\ into the CLI's own
+    output. Those staged folders do NOT flow transitively to this project's output, so copy
+    them next to the GUI assembly — ExecutorLocator.Find and SkillStore.BundledSkillsDirectory
+    both probe AppContext.BaseDirectory and must find them for dotnet run / dotnet build.
+    AfterTargets="Build" runs strictly after the CLI's BeforeTargets="Build" staging.
+  -->
+  <PropertyGroup>
+    <CliOutputPath Condition="'$(RuntimeIdentifier)' == ''">..\RevitAgent.Cli\bin\$(Configuration)\net10.0\</CliOutputPath>
+    <CliOutputPath Condition="'$(RuntimeIdentifier)' != ''">..\RevitAgent.Cli\bin\$(Configuration)\net10.0\$(RuntimeIdentifier)\</CliOutputPath>
+  </PropertyGroup>
+
+  <Target Name="StageCliAssets" AfterTargets="Build">
+    <Warning Condition="!Exists('$(CliOutputPath)executor-2022')"
+             Text="CLI staged executors not found under $(CliOutputPath) — build RevitAgent.Cli first (the ProjectReference should have; a --no-dependencies build would not)." />
+    <ItemGroup>
+      <StagedCliAsset Include="$(CliOutputPath)executor-2019\**\*" StagedDir="executor-2019" />
+      <StagedCliAsset Include="$(CliOutputPath)executor-2020\**\*" StagedDir="executor-2020" />
+      <StagedCliAsset Include="$(CliOutputPath)executor-2021\**\*" StagedDir="executor-2021" />
+      <StagedCliAsset Include="$(CliOutputPath)executor-2022\**\*" StagedDir="executor-2022" />
+      <StagedCliAsset Include="$(CliOutputPath)skills\**\*" StagedDir="skills" />
+    </ItemGroup>
+    <Copy SourceFiles="@(StagedCliAsset)"
+          DestinationFolder="$(OutputPath)%(StagedDir)\%(RecursiveDir)"
+          SkipUnchangedFiles="true" />
+    <!-- The Exe→Exe ProjectReference can flow the CLI's apphost/runtimeconfig/deps into this
+         output (SDK-version dependent). They are inert here — this host is RevitAgent.Gui.exe
+         and dependency resolution uses RevitAgent.Gui.deps.json. revit-agent.dll stays: it is
+         the assembly the GUI actually calls. -->
+    <Delete Files="$(OutputPath)revit-agent.exe;$(OutputPath)revit-agent.runtimeconfig.json;$(OutputPath)revit-agent.deps.json"
+            TreatErrorsAsWarnings="true" />
+  </Target>
+
+</Project>

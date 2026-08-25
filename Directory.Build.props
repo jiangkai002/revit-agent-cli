@@ -4,5 +4,10 @@
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <RevitVersion Condition="'$(RevitVersion)' == ''">2022</RevitVersion>
+    <Version>1.0.3</Version>
+    <Company>Nice3Point</Company>
+    <Product>RevitAgent</Product>
+    <Authors>Nice3Point</Authors>
+    <Copyright>Copyright © Nice3Point 2026</Copyright>
   </PropertyGroup>
 </Project>

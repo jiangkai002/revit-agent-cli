@@ -29,16 +29,19 @@ public sealed class AgentHost
     private ChatClientAgent? _agent;
     private AgentSession? _session;
     private readonly SemaphoreSlim _initLock = new(1, 1);
-    private volatile Spinner? _spinner; // per AskAsync call; read by the tool wrapper (may run on a framework thread)
+    private readonly IAgentTurnDisplayFactory _displayFactory; // per instance; console default keeps the CLI call sites unchanged
+    private volatile IAgentTurnDisplay? _turnDisplay; // per AskAsync call; read by the tool wrapper (may run on a framework thread)
     private CancellationToken _cancelToken; // per AskAsync call; read by the tool wrapper so Ctrl+C cancels the in-flight executor wait. Plain field — CancellationToken (a struct w/ a reference) can't be `volatile`; the async/await happens-before edge when the framework schedules the delegate guarantees the write is visible.
 
-    public AgentHost(AgentConfig config, string? modelOverride, IReadOnlyList<string> modelPaths, int revitVersion)
+    public AgentHost(AgentConfig config, string? modelOverride, IReadOnlyList<string> modelPaths, int revitVersion,
+        IAgentTurnDisplayFactory? displayFactory = null)
     {
         _config = config;
         _modelOverride = modelOverride ?? string.Empty;
         _initialModelPaths = modelPaths;
         _modelPaths = modelPaths;
         _revitVersion = revitVersion;
+        _displayFactory = displayFactory ?? new ConsoleAgentDisplayFactory();
     }
 
     /// <summary>The batch of models active when the session started; "/rvt all" restores to it.</summary>
@@ -61,31 +64,20 @@ public sealed class AgentHost
         _cancelToken = ct; // the tool delegates read this so Ctrl+C can cancel the in-flight executor wait
         _session ??= await agent.CreateSessionAsync(conversationId: null!, ct);
 
-        // Spinner animates during gaps (notably the ~20s headless Revit execution);
-        // the streaming ProcessDisplay pauses it to print gray event lines (reasoning,
-        // tool calls, tool results) and resumes afterward. The RunRevitCode tool
-        // wrapper still drives 执行中 / 汇总结果中 stages on this same spinner, so the
-        // user sees live activity during the long tool run, not a frozen line. The
-        // final answer is returned (not printed here) so the command prints it in
-        // normal color, cleanly separated from the gray process above it.
-        var spinner = new Spinner("分析需求中");
-        _spinner = spinner;
-
-        using var analyzeCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await Task.Delay(2500, analyzeCts.Token);
-                spinner.TransitionToWritingIfStillAnalyzing();
-            }
-            catch (OperationCanceledException) { }
-        });
+        // The per-turn display (console default: spinner + gray process lines; a GUI host
+        // injects its own factory to receive the same events) animates during gaps (notably
+        // the ~20s headless Revit execution) and renders the live process (reasoning, tool
+        // calls, tool results). The RunRevitCode/ExportCsv tool wrappers still drive the
+        // 执行中 / 汇总结果中 stages on this same display, so the user sees live activity
+        // during the long tool run, not a frozen line. The final answer is returned (not
+        // printed here) so the command prints it in normal color, cleanly separated from
+        // the gray process above it.
+        using var turnDisplay = _displayFactory.BeginTurn(ct);
+        _turnDisplay = turnDisplay;
 
         try
         {
             var runOptions = new ChatClientAgentRunOptions(new ChatOptions());
-            var display = new ProcessDisplay(spinner);
             // TextContent buffered for the current turn: if a tool call follows it, it is
             // shown as a gray "preamble" line (the model thinking out loud before acting);
             // if the stream ends with no tool call after it, it is the final answer
@@ -100,7 +92,7 @@ public sealed class AgentHost
                     switch (content)
                     {
                         case TextReasoningContent reasoning:
-                            display.WriteReasoning(reasoning.Text ?? "");
+                            turnDisplay.OnReasoningDelta(reasoning.Text ?? "");
                             break;
                         case TextContent text:
                             preamble.Append(text.Text);
@@ -108,24 +100,24 @@ public sealed class AgentHost
                         case FunctionCallContent functionCall:
                             if (preamble.Length > 0)
                             {
-                                display.WritePreamble(preamble.ToString());
+                                turnDisplay.OnPreamble(preamble.ToString());
                                 preamble.Clear();
                             }
-                            display.WriteToolCall(functionCall.Name ?? "?", functionCall.Arguments);
+                            turnDisplay.OnToolCall(functionCall.Name ?? "?", functionCall.Arguments);
                             break;
                         case FunctionResultContent functionResult:
                             if (preamble.Length > 0)
                             {
-                                display.WritePreamble(preamble.ToString());
+                                turnDisplay.OnPreamble(preamble.ToString());
                                 preamble.Clear();
                             }
-                            display.WriteToolResult(functionResult.Result);
+                            turnDisplay.OnToolResult(functionResult.Result);
                             break;
                     }
                 }
             }
 
-            display.CloseLine();
+            turnDisplay.OnTurnCompleted();
 
             // Text remaining after the last event with no subsequent tool call = the final answer.
             var finalText = preamble.ToString();
@@ -133,9 +125,9 @@ public sealed class AgentHost
         }
         finally
         {
-            analyzeCts.Cancel();
-            _spinner = null;
-            spinner.Dispose(); // stops the animation, clears the spinner line
+            _turnDisplay = null;
+            // turnDisplay disposes via its `using` right after the finally (stops the
+            // console animation / clears the spinner line); nothing runs in between.
         }
     }
 
@@ -186,9 +178,9 @@ public sealed class AgentHost
         AITool runRevitCode = AIFunctionFactory.Create(
             (Func<string, Task<string>>)(async source =>
             {
-                _spinner?.MarkExecuting();
+                _turnDisplay?.OnExecuting();
                 try { return await tool.RunAsync(source, _modelPaths, _revitVersion, _cancelToken); }
-                finally { _spinner?.SetStage("汇总结果中"); }
+                finally { _turnDisplay?.OnStage("汇总结果中"); }
             }),
             name: "RunRevitCode",
             description: "编译并在无头 Revit 中运行 C# 二次开发代码。传入一个完整 .cs 文件源码字符串，"
@@ -223,13 +215,13 @@ public sealed class AgentHost
         AITool exportCsv = AIFunctionFactory.Create(
             (Func<string, string, Task<string>>)(async (source, path) =>
             {
-                _spinner?.MarkExecuting();
+                _turnDisplay?.OnExecuting();
                 try
                 {
                     var envelope = await tool.RunAsync(source, _modelPaths, _revitVersion, _cancelToken);
-                    return ExportCsvTool.Export(envelope, path);
+                    return ExportCsvTool.Export(envelope, path, _modelPaths);
                 }
-                finally { _spinner?.SetStage("汇总结果中"); }
+                finally { _turnDisplay?.OnStage("汇总结果中"); }
             }),
             name: "ExportCsv",
             description: "将 Revit 构件参数信息导出为 CSV 文件。参数：(1) source — 完整 .cs 源码字符串，"
@@ -238,7 +230,8 @@ public sealed class AgentHost
                 + "属性=列名，值须为标量 int/double/bool/string，不要嵌套对象）。"
                 + "会对批次中每个模型各执行一次 Execute，工具把所有模型的行拼成一个 CSV，"
                 + "并自动在最前加 `Model` 列（模型文件名）区分来源。"
-                + "(2) path — 输出 CSV 文件路径（默认放当前目录，如 ./walls.csv；若用户指定了路径则用其路径）。"
+                + "(2) path — 输出 CSV 文件路径（相对路径默认放第一个 Revit 模型所在目录，如 ./walls.csv；"
+                + "若用户指定了绝对路径则使用该路径；多模型位于不同目录时仍以第一个模型为准）。"
                 + "工具编译并运行代码，序列化为 CSV（UTF-8+BOM，Excel 友好）写入该路径，"
                 + "返回 '已导出 N 行（M 列，来自 K 个模型）到 <path>'。注意：每模型返回完整列表，不要截断/抽样。",
             serializerOptions: null);
@@ -284,7 +277,8 @@ public sealed class AgentHost
         {
             var desc = string.IsNullOrWhiteSpace(s.Description) ? "(无简介)" : s.Description;
             if (desc.Length > 120) desc = desc[..117] + "...";
-            lines.Add($"- {s.Name} — {desc}");
+            var tags = (s.Tags != null && s.Tags.Count > 0) ? $" [tags: {string.Join(", ", s.Tags)}]" : "";
+            lines.Add($"- {s.Name}{tags} — {desc}");
         }
         lines.Add("（匹配需求时先调用 LoadSkill(\"名称\") 加载详细指南与模板）");
         return string.Join("\n", lines) + "\n";

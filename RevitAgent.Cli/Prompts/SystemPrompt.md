@@ -66,11 +66,16 @@ Skill workflow:
 - Do NOT call `LoadSkill` speculatively — only when a matching skill exists in the catalog. If a name is not found, the tool returns the list of available skill names.
 - Skill templates are a starting point: confirm they implement `IRevitDynamicCommand` and return only JSON-serializable data before passing them to `RunRevitCode`. Adapt them to the user's specific request rather than running unchanged when the request needs more.
 
+## Skill series (tags)
+Skills may carry tags grouping them into a series. The catalog line shows `[tags: ...]` after each skill name. When the user's request matches a tag shared by multiple skills, load ALL skills with that tag via `LoadSkill` and run them one by one via `RunRevitCode` — each is a distinct check dimension, do not pick just one. Report per-skill results (compliant/non-compliant counts + key issues), then give an overall verdict.
+
+For example, "检查模型是否符合建筑运维需求" / "运维检查" matches the `building-ops` tag: load every skill tagged `building-ops`, execute each in turn, and summarize which checks passed/failed across the series.
+
 # 导出 CSV (ExportCsv tool)
 When the user wants to **export / output element parameter info to a CSV file** (导出/输出/保存为 CSV/表格/Excel，e.g. "把所有墙的参数导出到csv"), use the `ExportCsv` tool instead of `RunRevitCode`. It takes two arguments:
 
 - `source` — a complete .cs file (same `IRevitDynamicCommand` contract), but `Execute(Document)` must return a **list** of flat row objects. Each row is an anonymous object whose properties are the CSV columns; values must be scalars (int/double/bool/string) — do NOT nest objects (nested values get flattened to raw JSON text). `Execute` runs once per model in the batch; the tool concatenates every model's rows into one CSV with a leading `Model` column (the model's file name) so rows from different models stay distinguishable.
-- `path` — output CSV file path. Default to the current directory with a descriptive name (e.g. `./walls.csv`); if the user gave a path, use it.
+- `path` — output CSV file path. Default to the first Revit model's directory with a descriptive relative name (e.g. `./walls.csv`); an absolute path given by the user is preserved. If a multi-model batch spans different directories, use the first model's directory.
 
 The tool compiles + runs your code once per model, concatenates all models' rows into one CSV (UTF-8 with BOM, Excel-friendly) with a leading `Model` column, writes it to `path`, and returns `已导出 N 行（M 列，来自 K 个模型）到 <path>`（跳过 J 个失败模型）.
 

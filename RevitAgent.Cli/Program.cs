@@ -51,10 +51,10 @@ static int PrintHelp(string? note = null){
     Console.WriteLine("  chat          进入交互会话（多轮）");
     Console.WriteLine("  exec <cs>     直接运行一段 Revit 二次开发代码（不经 LLM，用于测试）");
     Console.WriteLine("  config        查看或编辑配置 (init/set/get/path)");
-    Console.WriteLine("  skill         安装/查看/移除技能 (install <url>|list|show <name>|remove <name>|path)");
+    Console.WriteLine("  skill         安装/查看/移除技能 (install <url|zip路径>|list|show <name>|remove <name>|path)");
     Console.WriteLine();
     Console.WriteLine("通用选项:");
-    Console.WriteLine("  --version <2021|2022>  Revit 版本（默认取配置）");
+    Console.WriteLine("  --version <2019|2020|2021|2022>  Revit 版本（默认取配置）");
     Console.WriteLine("  --model-path <文件或目录>  Revit 模型路径（目录则扫描其中所有 .rvt；省略则扫描当前目录）");
     Console.WriteLine("  --model <name>         LLM 模型名（默认取配置）");
     return 1;

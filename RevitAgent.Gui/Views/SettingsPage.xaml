@@ -1,0 +1,143 @@
+<local:NavigationPage x:Class="RevitAgent.Gui.Views.SettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:local="clr-namespace:RevitAgent.Gui.Views"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      mc:Ignorable="d" d:DesignHeight="760" d:DesignWidth="960"
+      Background="Transparent">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="28,18,28,32" MaxWidth="780" HorizontalAlignment="Left">
+            <TextBlock Text="设置" Style="{StaticResource PageTitleStyle}" />
+            <TextBlock Text="管理外观、模型服务和默认 Revit 工作环境。"
+                       Style="{StaticResource PageSubtitleStyle}" Margin="0,4,0,24" />
+
+            <TextBlock Text="个性化" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,10" />
+            <Border Style="{StaticResource SurfaceCardStyle}" Margin="0,0,0,24">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="220" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="应用主题" FontWeight="SemiBold" />
+                        <TextBlock Text="跟随 Windows 设置，或始终使用亮色 / 暗色外观。"
+                                   Style="{StaticResource CaptionStyle}" Margin="0,3,24,0" />
+                    </StackPanel>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding ThemePreferences}"
+                              SelectedItem="{Binding ThemePreference}" MinWidth="180"
+                              HorizontalAlignment="Stretch" VerticalAlignment="Center">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Converter={StaticResource ThemeNameConverter}}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </Grid>
+            </Border>
+
+            <TextBlock Text="LLM 服务" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,10" />
+            <Border Style="{StaticResource SurfaceCardStyle}" Margin="0,0,0,24">
+                <StackPanel>
+                    <Grid Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="230" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Margin="0,4,24,0">
+                            <TextBlock Text="API Base URL" FontWeight="SemiBold" />
+                            <TextBlock Text="OpenAI 兼容端点，留空使用官方服务。"
+                                       Style="{StaticResource CaptionStyle}" Margin="0,3,0,0" />
+                        </StackPanel>
+                        <ui:TextBox Grid.Column="1" Text="{Binding BaseUrl, UpdateSourceTrigger=PropertyChanged}"
+                                    PlaceholderText="https://api.openai.com/v1" />
+                    </Grid>
+                    <Border BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
+                            BorderThickness="0,1,0,0" Margin="0,0,0,16" />
+                    <Grid Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="230" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Margin="0,4,24,0">
+                            <TextBlock Text="模型名称" FontWeight="SemiBold" />
+                            <TextBlock Text="传给服务的聊天模型 ID。" Style="{StaticResource CaptionStyle}" Margin="0,3,0,0" />
+                        </StackPanel>
+                        <ui:TextBox Grid.Column="1" Text="{Binding Model, UpdateSourceTrigger=PropertyChanged}"
+                                    PlaceholderText="gpt-4o / deepseek-chat / …" />
+                    </Grid>
+                    <Border BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
+                            BorderThickness="0,1,0,0" Margin="0,0,0,16" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="230" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Margin="0,4,24,0">
+                            <TextBlock Text="API 密钥环境变量" FontWeight="SemiBold" />
+                            <TextBlock Text="只保存变量名，密钥本体永不落盘。" Style="{StaticResource CaptionStyle}" Margin="0,3,0,0" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <ui:TextBox Text="{Binding ApiKeyEnv, UpdateSourceTrigger=PropertyChanged}"
+                                        PlaceholderText="REVIT_AGENT_API_KEY" />
+                            <TextBlock Text="{Binding ApiKeyStatus}" Style="{StaticResource CaptionStyle}" Margin="2,6,0,0" />
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="默认 Revit 环境" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,10" />
+            <Border Style="{StaticResource SurfaceCardStyle}" Margin="0,0,0,20">
+                <StackPanel>
+                    <Grid Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="230" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Margin="0,4,24,0">
+                            <TextBlock Text="Revit 版本" FontWeight="SemiBold" />
+                            <TextBlock Text="新会话使用对应版本的执行器。" Style="{StaticResource CaptionStyle}" Margin="0,3,0,0" />
+                        </StackPanel>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding RevitVersions}"
+                                  SelectedItem="{Binding DefaultRevitVersion}" MinWidth="130"
+                                  HorizontalAlignment="Left" />
+                    </Grid>
+                    <Border BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
+                            BorderThickness="0,1,0,0" Margin="0,0,0,16" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="230" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Margin="0,4,24,0">
+                            <TextBlock Text="默认模型" FontWeight="SemiBold" />
+                            <TextBlock Text="支持 .rvt 文件或包含模型的目录。" Style="{StaticResource CaptionStyle}" Margin="0,3,0,0" />
+                        </StackPanel>
+                        <Grid Grid.Column="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ui:TextBox Text="{Binding DefaultModelPath, UpdateSourceTrigger=PropertyChanged}" />
+                            <ui:Button Grid.Column="1" Content="浏览…" Command="{Binding BrowseModelPathCommand}"
+                                       Margin="8,0,0,0" MinWidth="76" />
+                        </Grid>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Grid>
+                <TextBlock Text="%APPDATA%\revit-agent\config.json"
+                           Style="{StaticResource CaptionStyle}" VerticalAlignment="Center" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBlock Text="{Binding SaveMessage}" Margin="0,0,14,0" VerticalAlignment="Center"
+                               TextWrapping="Wrap"
+                               Foreground="{Binding SaveMessageIsError, Converter={StaticResource BoolToSaveBrushConverter}}" />
+                    <ui:Button Content="保存更改" Appearance="Primary"
+                               Command="{Binding SaveCommand}" MinWidth="108" />
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</local:NavigationPage>

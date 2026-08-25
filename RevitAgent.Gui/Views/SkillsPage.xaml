@@ -1,0 +1,127 @@
+<local:NavigationPage x:Class="RevitAgent.Gui.Views.SkillsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:local="clr-namespace:RevitAgent.Gui.Views"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      mc:Ignorable="d" d:DesignHeight="740" d:DesignWidth="960"
+      Background="Transparent">
+    <Grid Margin="28,18,28,28">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="20" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <StackPanel>
+            <TextBlock Text="技能库" Style="{StaticResource PageTitleStyle}" />
+            <TextBlock Text="通过受信任的指南与 C# 模板扩展智能体的 Revit 能力。"
+                       Style="{StaticResource PageSubtitleStyle}" Margin="0,4,0,18" />
+            <Border Style="{StaticResource SurfaceCardStyle}">
+                <StackPanel>
+                    <TextBlock Text="安装技能" FontWeight="SemiBold" />
+                    <TextBlock Text="技能代码会在你的 Revit 模型上运行，请只安装来自可信来源的内容。"
+                               Style="{StaticResource CaptionStyle}" Margin="0,3,0,12" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ui:TextBox Text="{Binding InstallUrl, UpdateSourceTrigger=PropertyChanged}"
+                                    PlaceholderText="https://github.com/user/repo/archive/refs/heads/main.zip"
+                                    IsEnabled="{Binding IsInstalling, Converter={StaticResource InverseBoolConverter}}" />
+                        <ui:Button Grid.Column="1" Content="安装技能" Appearance="Primary"
+                                   Command="{Binding InstallCommand}" MinWidth="96" Margin="10,0,0,0" />
+                    </Grid>
+                    <Grid Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Separator VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="或" Style="{StaticResource CaptionStyle}"
+                                   Margin="10,0" VerticalAlignment="Center" />
+                        <Separator Grid.Column="2" VerticalAlignment="Center" />
+                    </Grid>
+                    <ui:Button Content="从本地 ZIP 安装"
+                               Click="InstallLocalZip_OnClick"
+                               IsEnabled="{Binding IsInstalling, Converter={StaticResource InverseBoolConverter}}"
+                               HorizontalAlignment="Left" MinWidth="142" Margin="0,10,0,0" />
+                    <TextBlock Text="{Binding StatusMessage}" Margin="2,8,0,0" TextWrapping="Wrap"
+                               FontSize="12"
+                               Foreground="{Binding StatusIsError, Converter={StaticResource BoolToSaveBrushConverter}}" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="10" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <TextBlock Text="已安装" Style="{StaticResource SectionTitleStyle}" />
+            <Border Grid.Row="2" Style="{StaticResource SurfaceCardStyle}" Padding="0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding Skills}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
+                                        BorderThickness="0,0,0,1" Padding="18,15">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="38" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Width="32" Height="32" CornerRadius="8"
+                                                Background="{DynamicResource AccentFillColorSecondaryBrush}"
+                                                VerticalAlignment="Top">
+                                            <TextBlock Text="&lt;/&gt;" FontFamily="{StaticResource AppMonospaceFontFamily}"
+                                                       FontSize="11" FontWeight="SemiBold"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Margin="8,0,18,0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" />
+                                                <Border Background="{DynamicResource SystemFillColorNeutralBackgroundBrush}"
+                                                        CornerRadius="8" Padding="7,1" Margin="8,0,0,0">
+                                                    <Border.Visibility>
+                                                        <Binding Path="Bundled" Converter="{StaticResource BoolToVisibilityConverter}" />
+                                                    </Border.Visibility>
+                                                    <TextBlock Text="内置" FontSize="10" />
+                                                </Border>
+                                                <TextBlock Text="{Binding Version, StringFormat='v{0}'}"
+                                                           Style="{StaticResource CaptionStyle}" Margin="9,1,0,0" />
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding Description}" Style="{StaticResource CaptionStyle}"
+                                                       TextTrimming="CharacterEllipsis" Margin="0,4,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <ui:Button Content="查看" Click="ViewSkill_OnClick" MinWidth="72" Margin="0,0,8,0" />
+                                            <ui:Button Content="移除"
+                                                       Command="{Binding DataContext.RemoveSkillCommand, RelativeSource={RelativeSource AncestorType={x:Type local:NavigationPage}}}"
+                                                       CommandParameter="{Binding}" MinWidth="72">
+                                                <ui:Button.Visibility>
+                                                    <Binding Path="Bundled" Converter="{StaticResource InverseBoolToVisibilityConverter}" />
+                                                </ui:Button.Visibility>
+                                            </ui:Button>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
+            <StackPanel Grid.Row="3" Margin="2,10,0,0">
+                <TextBlock Text="{Binding UserSkillsDirectory, StringFormat='用户技能：{0}'}"
+                           Style="{StaticResource CaptionStyle}" FontSize="11" />
+                <TextBlock Text="{Binding BundledSkillsInfo, StringFormat='内置技能：{0}'}"
+                           Style="{StaticResource CaptionStyle}" FontSize="11" Margin="0,2,0,0" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</local:NavigationPage>

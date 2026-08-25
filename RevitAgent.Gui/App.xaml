@@ -1,0 +1,89 @@
+<Application x:Class="RevitAgent.Gui.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:mdxaml="clr-namespace:MdXaml;assembly=MdXaml"
+             xmlns:local="clr-namespace:RevitAgent.Gui"
+             StartupUri="MainWindow.xaml"
+             ShutdownMode="OnMainWindowClose">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ui:ThemesDictionary Theme="Light" />
+                <ui:ControlsDictionary />
+            </ResourceDictionary.MergedDictionaries>
+            <local:BoolToSaveBrushConverter x:Key="BoolToSaveBrushConverter" />
+            <local:InverseBoolConverter x:Key="InverseBoolConverter" />
+            <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+            <local:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" />
+            <local:ThemeNameConverter x:Key="ThemeNameConverter" />
+
+            <!-- Microsoft YaHei UI is the standard Windows Simplified Chinese UI face.
+                 Keep Microsoft YaHei and Segoe UI as fallbacks for older systems and
+                 non-Chinese glyphs. Windows inherit this family so WPF-UI controls,
+                 native controls and document content use the same typography. -->
+            <FontFamily x:Key="AppFontFamily">Microsoft YaHei UI, Microsoft YaHei, Segoe UI</FontFamily>
+            <FontFamily x:Key="AppMonospaceFontFamily">Cascadia Mono, Consolas, Microsoft YaHei UI, Microsoft YaHei</FontFamily>
+
+            <Style x:Key="PageTitleStyle" TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+                <Setter Property="FontSize" Value="28" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            </Style>
+            <Style x:Key="PageSubtitleStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+            </Style>
+            <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="15" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            </Style>
+            <Style x:Key="SurfaceCardStyle" TargetType="Border">
+                <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="10" />
+                <Setter Property="Padding" Value="16" />
+            </Style>
+            <Style x:Key="SubtleCardStyle" TargetType="Border" BasedOn="{StaticResource SurfaceCardStyle}">
+                <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="Padding" Value="12" />
+            </Style>
+            <Style x:Key="CaptionStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+            </Style>
+
+            <!-- Sasabune uses the viewer foreground to derive table stripes, borders, quotes
+                 and code surfaces, unlike GithubLike which hardcodes white table rows and black
+                 headings. These overrides align the document typography with Fluent UI. -->
+            <Style x:Key="FluentMarkdownStyle"
+                   TargetType="FlowDocument"
+                   BasedOn="{x:Static mdxaml:MarkdownStyle.Sasabune}">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="PagePadding" Value="0" />
+            </Style>
+
+            <!-- The WPF-UI dark theme colors WPF-UI controls (buttons, cards, its own
+                 TextBox/ui:TextBlock) but does NOT give bare WPF primitives a foreground:
+                 every un-themed TextBlock would render the framework default (black) on the
+                 dark chrome = unreadable. This implicit style routes all un-themed text to the
+                 theme's primary text brush, so pages only need explicit colors when they
+                 deliberately want to differ. WPF-UI control templates set their own text
+                 colors locally (higher precedence than an implicit style setter), so themed
+                 controls are never overridden. -->
+            <Style TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

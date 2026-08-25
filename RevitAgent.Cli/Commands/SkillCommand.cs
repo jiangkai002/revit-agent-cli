@@ -29,15 +29,19 @@ public static class SkillCommand
 
     private static async Task<int> InstallAsync(string[] args)
     {
-        var url = args.FirstOrDefault();
-        if (string.IsNullOrWhiteSpace(url))
+        var source = args.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(source))
         {
-            Console.Error.WriteLine("用法: revit-agent skill install <url>");
+            Console.Error.WriteLine("用法: revit-agent skill install <url|zip路径>");
             return 1;
         }
 
-        Console.WriteLine($"正在从 {url} 安装技能...");
-        var (ok, message) = await SkillStore.InstallFromUrlAsync(url);
+        var isWebUrl = Uri.TryCreate(source, UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+        Console.WriteLine(isWebUrl ? $"正在从 {source} 安装技能..." : $"正在从本地 ZIP 安装技能: {source}");
+        var (ok, message) = isWebUrl
+            ? await SkillStore.InstallFromUrlAsync(source)
+            : await SkillStore.InstallFromZipAsync(source);
         Console.WriteLine(message);
         if (ok)
         {
@@ -62,7 +66,8 @@ public static class SkillCommand
         {
             var desc = string.IsNullOrWhiteSpace(s.Description) ? "(无简介)" : s.Description;
             var tag = s.Bundled ? " [内置]" : "";
-            Console.WriteLine($"  {s.Name}{tag} — {desc}");
+            var tags = (s.Tags != null && s.Tags.Count > 0) ? $" [tags: {string.Join(", ", s.Tags)}]" : "";
+            Console.WriteLine($"  {s.Name}{tag}{tags} — {desc}");
         }
         return 0;
     }
@@ -114,7 +119,7 @@ public static class SkillCommand
         Console.WriteLine("revit-agent skill — 技能管理");
         Console.WriteLine();
         Console.WriteLine("子命令:");
-        Console.WriteLine("  install <url>  从 zip URL 安装技能（http/https）");
+        Console.WriteLine("  install <来源>  从 zip URL（http/https）或本地 ZIP 路径安装技能");
         Console.WriteLine("  list            列出已安装技能（含 [内置] 只读集）");
         Console.WriteLine("  show <name>     查看技能的 manifest 与指引正文");
         Console.WriteLine("  remove <name>   移除用户技能（内置只读不可移除，可装同名覆盖）");

@@ -1,7 +1,9 @@
 # Build a current revit-agent.msi from source, end to end.
 #
 # Pipeline:
-#   dotnet publish (win-x64, self-contained) -> installer-payload\  (CLI runtime only)
+#   dotnet publish CLI (win-x64, self-contained) -> installer-payload\  (CLI runtime)
+#   dotnet publish GUI (win-x64, self-contained) -> installer-payload\  (root-merge: adds the
+#     WindowsDesktop/WPF runtime + GUI assemblies; overlapping NETCore files are byte-identical)
 #   copy bin\Release\net10.0\win-x64\executor-<v>\ -> installer-payload\executor-<v>\
 #     publish -o copies the CLI runtime into the payload but does NOT carry the
 #     executor folders that BuildAndStageExecutors staged into the RID-specific
@@ -35,6 +37,25 @@ Write-Host "==> Publish self-contained (win-x64) -> $Payload\" -ForegroundColor 
 if (Test-Path $Payload) { Remove-Item -Recurse -Force $Payload }
 dotnet publish $Cli -c Release -r win-x64 --self-contained true -o $Payload
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed (exit $LASTEXITCODE)" }
+
+# GUI: publish self-contained into the SAME payload root (root-merge). Overlapping files are
+# the Microsoft.NETCore.App runtime, byte-identical here (same SDK/machine/script), so the
+# overwrite is harmless; the GUI adds the WindowsDesktop (WPF) runtime + Wpf.Ui/MdXaml
+# assemblies additively. App-identity files don't collide (revit-agent.* vs RevitAgent.Gui.*).
+# Both exes in the install root also keep ExecutorLocator/SkillStore BaseDirectory probes
+# working identically for the GUI. Note: the GUI publish also builds the CLI with -r win-x64
+# via its ProjectReference — same staged output $StagedRoot reads below, harmless duplicate.
+$Gui = "RevitAgent.Gui\RevitAgent.Gui.csproj"
+Write-Host "==> Publish GUI self-contained (win-x64) -> $Payload\" -ForegroundColor Cyan
+dotnet publish $Gui -c Release -r win-x64 --self-contained true -o $Payload
+if ($LASTEXITCODE -ne 0) { throw "GUI dotnet publish failed (exit $LASTEXITCODE)" }
+# Root-merge sanity: both hosts + the WPF runtime must coexist after the merged publish.
+foreach ($exe in "revit-agent.exe", "RevitAgent.Gui.exe") {
+    if (-not (Test-Path (Join-Path $Payload $exe))) { throw "Payload missing $exe after publish" }
+}
+if (-not (Test-Path (Join-Path $Payload "PresentationFramework.dll"))) {
+    throw "WPF runtime missing from payload (WindowsDesktop runtime not merged)"
+}
 
 # publish -o brought in the CLI runtime but not the executor folders; copy them from
 # the RID-specific build output where BuildAndStageExecutors staged (already slimmed).
@@ -74,4 +95,9 @@ wix build installer.wxs payload-fragment.wxs -arch x64 -o revit-agent.msi
 if ($LASTEXITCODE -ne 0) { throw "wix build failed (exit $LASTEXITCODE)" }
 
 $msi = Get-Item revit-agent.msi
+$hash = (Get-FileHash -Algorithm SHA256 $msi.FullName).Hash.ToLowerInvariant()
+$checksumFile = "$($msi.FullName).sha256"
+Set-Content -Path $checksumFile -Value "$hash  $($msi.Name)" -Encoding ascii
 Write-Host ("Done: {0}  ({1:N0} bytes)" -f $msi.FullName, $msi.Length) -ForegroundColor Green
+Write-Host ("SHA256: {0}" -f $hash) -ForegroundColor Green
+Write-Host ("Checksum: {0}" -f $checksumFile) -ForegroundColor Green
