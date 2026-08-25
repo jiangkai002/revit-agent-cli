@@ -36,9 +36,17 @@
   .brand span{color:var(--muted);font-weight:500;font-size:.78rem;border:1px solid var(--border);padding:2px 7px;border-radius:5px;margin-left:4px}
   nav.links{display:flex;gap:26px;font-size:.92rem;color:var(--muted)}
   nav.links a:hover{color:var(--head)}
-  .btn{border:1px solid var(--border);padding:8px 16px;border-radius:8px;font-size:.9rem;color:var(--head);background:rgba(255,255,255,.02);transition:.15s}
+  .header-actions{display:flex;align-items:center;gap:8px}
+  .btn{border:1px solid var(--border);padding:8px 16px;border-radius:8px;font-size:.9rem;color:var(--head);background:rgba(255,255,255,.02);transition:.15s;white-space:nowrap}
   .btn:hover{border-color:var(--violet);color:#fff;box-shadow:0 0 0 1px rgba(124,92,255,.3)}
-  @media(max-width:640px){ nav.links{display:none} }
+  button.btn{font-family:var(--sans);cursor:pointer}
+  .lang-toggle{min-width:58px}
+  @media(max-width:640px){
+    header{padding:18px 16px}
+    nav.links,.brand span{display:none}
+    .header-actions{gap:6px}
+    .btn{padding:7px 11px;font-size:.82rem}
+  }
 
   /* hero */
   main{max-width:1040px;margin:0 auto;padding:28px 24px 64px}
@@ -120,48 +128,51 @@
 </head>
 <body>
   <header>
-    <div class="brand"><img class="mark" src="RevitAgent.Gui/Assets/RevitAgent.png" alt=""><b>RevitAgent</b><span>GUI + CLI</span></div>
+    <div class="brand"><img class="mark" src="RevitAgent.Gui/Assets/RevitAgent.png" alt=""><b>RevitAgent</b><span data-i18n="brandTag">GUI + CLI</span></div>
     <nav class="links">
-      <a href="#desktop">桌面端</a>
-      <a href="#features">能力</a>
-      <a href="https://github.com/jiangkai002/revit-agent-cli#readme">文档</a>
+      <a href="#desktop" data-i18n="navDesktop">桌面端</a>
+      <a href="#features" data-i18n="navFeatures">能力</a>
+      <a id="docsLink" href="https://github.com/jiangkai002/revit-agent-cli#readme" data-i18n="navDocs">文档</a>
     </nav>
-    <a class="btn" href="https://github.com/jiangkai002/revit-agent-cli">GitHub ↗</a>
+    <div class="header-actions">
+      <button id="languageToggle" class="btn lang-toggle" type="button" aria-label="Switch to English">EN</button>
+      <a class="btn" href="https://github.com/jiangkai002/revit-agent-cli">GitHub ↗</a>
+    </div>
   </header>
 
   <main>
     <section class="hero">
-      <p class="eyebrow">Windows Fluent UI · Headless Revit Agent</p>
-      <h1>用自然语言<br>完成 Revit 模型工作</h1>
-      <p class="sub">在 Windows 桌面工作台或终端中描述需求。RevitAgent 自动生成 Revit API C#、无头执行、汇总答案，并把表格结果导出到模型目录。</p>
+      <p class="eyebrow" data-i18n="eyebrow">Windows Fluent UI · Headless Revit Agent</p>
+      <h1 data-i18n-html="heroTitle">用自然语言<br>完成 Revit 模型工作</h1>
+      <p class="sub" data-i18n="heroSub">在 Windows 桌面工作台或终端中描述需求。RevitAgent 自动生成 Revit API C#、无头执行、汇总答案，并把表格结果导出到模型目录。</p>
       <div class="install">
         <code>powershell -File <span class="op">.\build-msi.ps1</span></code>
-        <span class="hint">单文件 MSI · 自带 .NET/WPF 运行时 · 需已安装 Revit 2019–2022</span>
+        <span class="hint" data-i18n="installHint">单文件 MSI · 自带 .NET/WPF 运行时 · 需已安装 Revit 2019–2022</span>
       </div>
 
       <div class="desktop" id="desktop">
         <div class="desktop-copy">
-          <h2>为长时间模型分析设计的桌面体验</h2>
-          <p>亮暗主题、固定输入区、独立滚动对话、可折叠工具结果，以及统一的模型、技能和服务设置。</p>
+          <h2 data-i18n="desktopTitle">为长时间模型分析设计的桌面体验</h2>
+          <p data-i18n="desktopSub">亮暗主题、固定输入区、独立滚动对话、可折叠工具结果，以及统一的模型、技能和服务设置。</p>
         </div>
         <div class="app-window" role="img" aria-label="RevitAgent Windows 桌面界面示意">
           <div class="app-title"><img src="RevitAgent.Gui/Assets/RevitAgent.png" alt="">RevitAgent <span class="window-buttons">— □ ×</span></div>
           <div class="app-body">
             <aside class="app-nav">
-              <div class="nav-item active">◯　会话</div>
-              <div class="nav-item">◇　技能</div>
-              <div class="nav-item nav-settings">⚙　设置</div>
+              <div class="nav-item active" data-i18n="appChatNav">◯　会话</div>
+              <div class="nav-item" data-i18n="appSkillsNav">◇　技能</div>
+              <div class="nav-item nav-settings" data-i18n="appSettingsNav">⚙　设置</div>
             </aside>
             <div class="app-chat">
-              <div><h3>智能会话</h3><div class="caption">Revit 2022 · 剧场模型.rvt</div></div>
+              <div><h3 data-i18n="appChatTitle">智能会话</h3><div class="caption" data-i18n="appModel">Revit 2022 · 剧场模型.rvt</div></div>
               <div class="messages">
-                <div class="bubble user">统计模型中所有吊杆，并整理编号。</div>
-                <div class="bubble agent">我会检查结构构件与设备编号，汇总吊杆类型和数量。</div>
-                <div class="tool-row">› 执行工具 · RunRevitCode · 1546 字符</div>
-                <div class="tool-row">› 工具结果 · 55683 字符</div>
-                <div class="bubble agent">已完成统计，并将 CSV 保存到模型所在目录。</div>
+                <div class="bubble user" data-i18n="appUserMessage">统计模型中所有吊杆，并整理编号。</div>
+                <div class="bubble agent" data-i18n="appAgentMessage">我会检查结构构件与设备编号，汇总吊杆类型和数量。</div>
+                <div class="tool-row" data-i18n="appToolCall">› 执行工具 · RunRevitCode · 1546 字符</div>
+                <div class="tool-row" data-i18n="appToolResult">› 工具结果 · 55683 字符</div>
+                <div class="bubble agent" data-i18n="appExportMessage">已完成统计，并将 CSV 保存到模型所在目录。</div>
               </div>
-              <div class="composer"><span>输入关于当前 Revit 模型的问题…</span><b>发送</b></div>
+              <div class="composer"><span data-i18n="appComposer">输入关于当前 Revit 模型的问题…</span><b data-i18n="appSend">发送</b></div>
             </div>
           </div>
         </div>
@@ -170,8 +181,8 @@
       <div class="terminal" aria-label="revit-agent 演示终端">
         <div class="chrome">
           <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-          <span class="title">同一个 Agent 引擎，也可通过 CLI 使用</span>
-          <button id="replay" class="replay" type="button">重播</button>
+          <span class="title" data-i18n="terminalTitle">同一个 Agent 引擎，也可通过 CLI 使用</span>
+          <button id="replay" class="replay" type="button" data-i18n="replay">重播</button>
         </div>
         <div id="term"></div>
       </div>
@@ -180,67 +191,153 @@
     <section class="features" id="features">
       <div class="card">
         <span class="tag">fluent · light/dark</span>
-        <h3>原生 Windows 桌面端</h3>
-        <p>WPF + Fluent UI，支持系统亮暗主题、窗口拖动和完整标题栏；长对话独立滚动，输入区始终固定。</p>
+        <h3 data-i18n="featureDesktopTitle">原生 Windows 桌面端</h3>
+        <p data-i18n="featureDesktopBody">WPF + Fluent UI，支持系统亮暗主题、窗口拖动和完整标题栏；长对话独立滚动，输入区始终固定。</p>
       </div>
       <div class="card">
         <span class="tag">skills · zip</span>
-        <h3>可扩展技能库</h3>
-        <p>5 个领域技能开箱即用，也能从 URL 或本地 ZIP 安装；说明与 C# 模板按需加载，不挤占基础上下文。</p>
+        <h3 data-i18n="featureSkillsTitle">可扩展技能库</h3>
+        <p data-i18n="featureSkillsBody">5 个领域技能开箱即用，也能从 URL 或本地 ZIP 安装；说明与 C# 模板按需加载，不挤占基础上下文。</p>
       </div>
       <div class="card">
         <span class="tag">csv · excel</span>
-        <h3>模型目录直接交付</h3>
-        <p>表格结果导出为 Excel 友好的 UTF-8 BOM CSV；相对路径自动落到模型目录，多模型自动增加 Model 列。</p>
+        <h3 data-i18n="featureCsvTitle">模型目录直接交付</h3>
+        <p data-i18n="featureCsvBody">表格结果导出为 Excel 友好的 UTF-8 BOM CSV；相对路径自动落到模型目录，多模型自动增加 Model 列。</p>
       </div>
       <div class="card">
         <span class="tag">batch</span>
-        <h3>多模型批量</h3>
-        <p>一个目录下多个 .rvt 在同一 Revit 会话中顺序执行，引擎只初始化一次，单模型失败不影响其他模型。</p>
+        <h3 data-i18n="featureBatchTitle">多模型批量</h3>
+        <p data-i18n="featureBatchBody">一个目录下多个 .rvt 在同一 Revit 会话中顺序执行，引擎只初始化一次，单模型失败不影响其他模型。</p>
       </div>
       <div class="card">
         <span class="tag">2019 – 2022</span>
-        <h3>多版本无头执行</h3>
-        <p>支持 Revit 2019–2022，无需打开 Revit 主界面；执行器按安装版本定位真实 Revit API。</p>
+        <h3 data-i18n="featureVersionsTitle">多版本无头执行</h3>
+        <p data-i18n="featureVersionsBody">支持 Revit 2019–2022，无需打开 Revit 主界面；执行器按安装版本定位真实 Revit API。</p>
       </div>
       <div class="card">
         <span class="tag">agent · roslyn</span>
-        <h3>代码现场生成</h3>
-        <p>智能体生成现代 C#，Roslyn 即时编译并在模型副本上执行；推理、工具调用与结果在界面中实时呈现。</p>
+        <h3 data-i18n="featureAgentTitle">代码现场生成</h3>
+        <p data-i18n="featureAgentBody">智能体生成现代 C#，Roslyn 即时编译并在模型副本上执行；推理、工具调用与结果在界面中实时呈现。</p>
       </div>
     </section>
   </main>
 
   <footer>
-    <span>RevitAgent · Windows Revit AI 智能工作台</span>
+    <span data-i18n="footerTagline">RevitAgent · Windows Revit AI 智能工作台</span>
     <a href="https://github.com/jiangkai002/revit-agent-cli">github.com/jiangkai002/revit-agent-cli ↗</a>
   </footer>
 
 <script>
 const term = document.getElementById('term');
 const replayBtn = document.getElementById('replay');
+const languageToggle = document.getElementById('languageToggle');
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const COMMAND = `revit-agent run "检查模型中有没有房间" --version 2022`;
-const ANSWER =
-`是的，模型里有房间，共 663 个。
+const STATIC_COPY = {
+  zh: {
+    title:'RevitAgent — Windows Revit AI 智能工作台',
+    description:'Windows Fluent GUI + CLI：用自然语言分析 Revit 模型，自动生成并无头执行 C#，管理技能并导出 CSV。',
+    brandTag:'GUI + CLI', navDesktop:'桌面端', navFeatures:'能力', navDocs:'文档',
+    eyebrow:'Windows Fluent UI · Headless Revit Agent', heroTitle:'用自然语言<br>完成 Revit 模型工作',
+    heroSub:'在 Windows 桌面工作台或终端中描述需求。RevitAgent 自动生成 Revit API C#、无头执行、汇总答案，并把表格结果导出到模型目录。',
+    installHint:'单文件 MSI · 自带 .NET/WPF 运行时 · 需已安装 Revit 2019–2022',
+    desktopTitle:'为长时间模型分析设计的桌面体验', desktopSub:'亮暗主题、固定输入区、独立滚动对话、可折叠工具结果，以及统一的模型、技能和服务设置。',
+    appChatNav:'◯　会话', appSkillsNav:'◇　技能', appSettingsNav:'⚙　设置', appChatTitle:'智能会话', appModel:'Revit 2022 · 剧场模型.rvt',
+    appUserMessage:'统计模型中所有吊杆，并整理编号。', appAgentMessage:'我会检查结构构件与设备编号，汇总吊杆类型和数量。',
+    appToolCall:'› 执行工具 · RunRevitCode · 1546 字符', appToolResult:'› 工具结果 · 55683 字符', appExportMessage:'已完成统计，并将 CSV 保存到模型所在目录。',
+    appComposer:'输入关于当前 Revit 模型的问题…', appSend:'发送', terminalTitle:'同一个 Agent 引擎，也可通过 CLI 使用', replay:'重播',
+    featureDesktopTitle:'原生 Windows 桌面端', featureDesktopBody:'WPF + Fluent UI，支持系统亮暗主题、窗口拖动和完整标题栏；长对话独立滚动，输入区始终固定。',
+    featureSkillsTitle:'可扩展技能库', featureSkillsBody:'5 个领域技能开箱即用，也能从 URL 或本地 ZIP 安装；说明与 C# 模板按需加载，不挤占基础上下文。',
+    featureCsvTitle:'模型目录直接交付', featureCsvBody:'表格结果导出为 Excel 友好的 UTF-8 BOM CSV；相对路径自动落到模型目录，多模型自动增加 Model 列。',
+    featureBatchTitle:'多模型批量', featureBatchBody:'一个目录下多个 .rvt 在同一 Revit 会话中顺序执行，引擎只初始化一次，单模型失败不影响其他模型。',
+    featureVersionsTitle:'多版本无头执行', featureVersionsBody:'支持 Revit 2019–2022，无需打开 Revit 主界面；执行器按安装版本定位真实 Revit API。',
+    featureAgentTitle:'代码现场生成', featureAgentBody:'智能体生成现代 C#，Roslyn 即时编译并在模型副本上执行；推理、工具调用与结果在界面中实时呈现。',
+    footerTagline:'RevitAgent · Windows Revit AI 智能工作台'
+  },
+  en: {
+    title:'RevitAgent — Windows AI Workspace for Revit',
+    description:'Windows Fluent GUI + CLI for natural-language Revit analysis, generated C#, headless execution, skills, and CSV exports.',
+    brandTag:'GUI + CLI', navDesktop:'Desktop', navFeatures:'Features', navDocs:'Docs',
+    eyebrow:'Windows Fluent UI · Headless Revit Agent', heroTitle:'Turn natural language into<br>Revit model work',
+    heroSub:'Describe a task in the Windows desktop workspace or terminal. RevitAgent generates Revit API C#, runs it headlessly, summarizes the answer, and exports tables beside your model.',
+    installHint:'Single MSI · .NET/WPF runtime included · Revit 2019–2022 required',
+    desktopTitle:'A desktop experience built for long model-analysis sessions', desktopSub:'Light and dark themes, a fixed composer, independently scrolling conversations, collapsible tool results, and unified model, skill, and provider settings.',
+    appChatNav:'◯　Chat', appSkillsNav:'◇　Skills', appSettingsNav:'⚙　Settings', appChatTitle:'Model conversation', appModel:'Revit 2022 · Theatre Model.rvt',
+    appUserMessage:'Count every hanger rod in the model and organize its number.', appAgentMessage:'I will inspect structural elements and device numbers, then summarize the hanger-rod types and quantities.',
+    appToolCall:'› Tool call · RunRevitCode · 1,546 chars', appToolResult:'› Tool result · 55,683 chars', appExportMessage:'Analysis complete. The CSV was saved beside the Revit model.',
+    appComposer:'Ask a question about the active Revit model…', appSend:'Send', terminalTitle:'The same agent engine is also available from the CLI', replay:'Replay',
+    featureDesktopTitle:'Native Windows desktop app', featureDesktopBody:'WPF + Fluent UI with system-aware light/dark themes, draggable chrome, independent transcript scrolling, and a fixed composer.',
+    featureSkillsTitle:'Extensible skill library', featureSkillsBody:'Five domain skills work out of the box. Install more from a URL or local ZIP; instructions and C# templates load only when needed.',
+    featureCsvTitle:'Deliver results beside the model', featureCsvBody:'Export Excel-friendly UTF-8 BOM CSV files. Relative paths resolve to the model directory, and multi-model exports add a Model column.',
+    featureBatchTitle:'Multi-model batches', featureBatchBody:'Process every top-level .rvt file in one Revit session. The engine initializes once, and one failed model does not stop the rest.',
+    featureVersionsTitle:'Headless across Revit versions', featureVersionsBody:'Run Revit 2019–2022 without opening the normal Revit UI. Versioned executors locate the installed Revit API automatically.',
+    featureAgentTitle:'Code generated on demand', featureAgentBody:'The agent writes modern C#, Roslyn compiles it, and the executor runs it against a model copy while the UI streams reasoning and tool activity.',
+    footerTagline:'RevitAgent · Windows AI workspace for Revit'
+  }
+};
+
+const TERMINAL_COPY = {
+  zh: {
+    command:`revit-agent run "检查模型中有没有房间" --version 2022`,
+    analyzing:'▎ 正在理解需求…', generating:'→ 生成 Revit 代码', running:'→ RunRevitCode · 无头启动 Revit、打开模型', injecting:'▎ 注入 Revit 引擎', complete:'← 执行完成',
+    answer:`是的，模型里有房间，共 663 个。
 
 房间统计
   房间总数              663
   已放置（有边界）      610
   未放置（无边界）       53
 
-所在楼层（约）
-  A_1F_站坪层_±0.000          610
-  A_1FM_国际到达层_4.500       50
-  A_B1M_设备机房夹层_-1.500      1
-
 值得注意
   大量房间面积 = 0（边界未闭合/未放置）；实际有面积(>0)约 150 个。
-  较大者：走廊 286 ≈ 4991 ft²、热力交换站W1 127 ≈ 4238 ft²、空调机房 438 ≈ 3688 ft²。
-  53 个未放置房间可能需在 Revit 中补房间分隔。
+  53 个未放置房间可能需要补充房间分隔。
 
-需要进一步分析吗？按楼层统计 / 面积为 0 的房间明细 / 未放置房间清单。`;
+需要进一步分析吗？可以按楼层统计，或导出未放置房间清单。`
+  },
+  en: {
+    command:`revit-agent run "Check whether this model contains rooms" --version 2022`,
+    analyzing:'▎ Understanding the request…', generating:'→ Generating Revit code', running:'→ RunRevitCode · Starting headless Revit and opening the model', injecting:'▎ Injecting the Revit engine', complete:'← Execution complete',
+    answer:`Yes. The model contains 663 rooms.
+
+Room summary
+  Total rooms                 663
+  Placed with boundaries      610
+  Unplaced                     53
+
+Notes
+  Many rooms have an area of 0 because they are unplaced or not enclosed.
+  53 unplaced rooms may require additional room-separation boundaries.
+
+Would you like a level-by-level summary or a CSV list of the unplaced rooms?`
+  }
+};
+
+const requestedLanguage = new URLSearchParams(window.location.search).get('lang');
+let storedLanguage = null;
+try { storedLanguage = window.localStorage.getItem('revit-agent-language'); } catch {}
+let currentLanguage = requestedLanguage === 'en' || requestedLanguage === 'zh'
+  ? requestedLanguage
+  : (storedLanguage === 'en' ? 'en' : 'zh');
+
+function applyLanguage(language){
+  currentLanguage = language;
+  const copy = STATIC_COPY[language];
+  document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en';
+  document.title = copy.title;
+  document.querySelector('meta[name="description"]').setAttribute('content', copy.description);
+  document.querySelectorAll('[data-i18n]').forEach(node => { node.textContent = copy[node.dataset.i18n]; });
+  document.querySelectorAll('[data-i18n-html]').forEach(node => { node.innerHTML = copy[node.dataset.i18nHtml]; });
+  document.getElementById('docsLink').href = language === 'zh'
+    ? 'https://github.com/jiangkai002/revit-agent-cli#readme'
+    : 'https://github.com/jiangkai002/revit-agent-cli/blob/main/README_EN.md';
+  document.querySelector('.app-window').setAttribute('aria-label', language === 'zh' ? 'RevitAgent Windows 桌面界面示意' : 'RevitAgent Windows desktop UI preview');
+  document.querySelector('.terminal').setAttribute('aria-label', language === 'zh' ? 'revit-agent 演示终端' : 'revit-agent terminal demonstration');
+  languageToggle.textContent = language === 'zh' ? 'EN' : '中文';
+  languageToggle.setAttribute('aria-label', language === 'zh' ? 'Switch to English' : '切换到中文');
+  try { window.localStorage.setItem('revit-agent-language', language); } catch {}
+  const url = new URL(window.location.href);
+  if (language === 'en') url.searchParams.set('lang', 'en'); else url.searchParams.delete('lang');
+  window.history.replaceState({}, '', url);
+}
 
 let cursor, cancelled = false, loopTimer;
 const el = (t,c) => { const e=document.createElement(t); if(c)e.className=c; return e; };
@@ -279,6 +376,7 @@ function spinner(text, ms){
 async function play(){
   cancelled = false;
   clearTimeout(loopTimer);
+  const copy = TERMINAL_COPY[currentLanguage];
   term.innerHTML = '';
   makeCursor();
   const line = el('div','line');
@@ -286,29 +384,39 @@ async function play(){
   const cmd = el('span','cmd');
   line.append(prompt, cmd);
   term.append(line);
-  await typeInto(cmd, COMMAND, 26);
+  await typeInto(cmd, copy.command, 26);
   await sleep(320);
   detach();
-  await progLine('▎ 正在理解需求…','reasoning'); await sleep(reduced?60:400);
-  await progLine('→ 生成 Revit 代码','toolcall'); await sleep(reduced?60:300);
-  await progLine('→ RunRevitCode · 无头启动 Revit、打开模型','toolcall');
-  await spinner('▎ 注入 Revit 引擎', 1500);
-  await progLine('← 执行完成','result'); await sleep(reduced?60:220);
+  await progLine(copy.analyzing,'reasoning'); await sleep(reduced?60:400);
+  await progLine(copy.generating,'toolcall'); await sleep(reduced?60:300);
+  await progLine(copy.running,'toolcall');
+  await spinner(copy.injecting, 1500);
+  await progLine(copy.complete,'result'); await sleep(reduced?60:220);
   const ans = el('pre','answer'); term.append(ans);
-  await typeInto(ans, ANSWER, 5);
+  await typeInto(ans, copy.answer, 5);
   loopTimer = setTimeout(()=>{ if(!cancelled) play(); }, reduced?2000:7000);
 }
 
 replayBtn.addEventListener('click', ()=>{ cancelled=true; setTimeout(play, 60); });
 
-if(reduced){
-  const line=el('div','line'); const p=el('span','prompt'); p.textContent='$ '; const c=el('span','cmd'); c.textContent=COMMAND;
+function renderReduced(){
+  const copy = TERMINAL_COPY[currentLanguage];
+  term.innerHTML='';
+  const line=el('div','line'); const p=el('span','prompt'); p.textContent='$ '; const c=el('span','cmd'); c.textContent=copy.command;
   line.append(p,c); term.append(line);
-  [['▎ 正在理解需求…','reasoning'],['→ 生成 Revit 代码','toolcall'],['→ RunRevitCode · 无头启动 Revit、打开模型','toolcall'],['▎ 注入 Revit 引擎  ✓','reasoning'],['← 执行完成','result']].forEach(([t,cls])=>{ const l=el('div','line '+cls); l.textContent=t; term.append(l); });
-  const a=el('pre','answer'); a.textContent=ANSWER; term.append(a);
-} else {
-  play();
+  [[copy.analyzing,'reasoning'],[copy.generating,'toolcall'],[copy.running,'toolcall'],[copy.injecting+'  ✓','reasoning'],[copy.complete,'result']].forEach(([t,cls])=>{ const l=el('div','line '+cls); l.textContent=t; term.append(l); });
+  const a=el('pre','answer'); a.textContent=copy.answer; term.append(a);
 }
+
+languageToggle.addEventListener('click', ()=>{
+  cancelled=true;
+  clearTimeout(loopTimer);
+  applyLanguage(currentLanguage === 'zh' ? 'en' : 'zh');
+  if(reduced) renderReduced(); else setTimeout(play,60);
+});
+
+applyLanguage(currentLanguage);
+if(reduced) renderReduced(); else play();
 </script>
 </body>
 </html>

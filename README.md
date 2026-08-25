@@ -2,6 +2,10 @@
   <img src="RevitAgent.Gui/Assets/RevitAgent.png" width="112" alt="RevitAgent logo">
 </p>
 
+<p align="center">
+  <strong>简体中文</strong> · <a href="README_EN.md">English</a>
+</p>
+
 # RevitAgent
 
 > Windows 桌面智能工作台、命令行工具与在线演示：<https://jiangkai002.github.io/revit-agent-cli/>
