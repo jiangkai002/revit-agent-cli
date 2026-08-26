@@ -98,6 +98,3 @@ $msi = Get-Item revit-agent.msi
 $hash = (Get-FileHash -Algorithm SHA256 $msi.FullName).Hash.ToLowerInvariant()
 $checksumFile = $msi.FullName + ".sha256"
 Set-Content -Path $checksumFile -Value ($hash + "  " + $msi.Name) -Encoding ascii
-Write-Host "Build complete"
-Write-Host "SHA256: $hash"
-Write-Host "Checksum saved to: $checksumFile"
