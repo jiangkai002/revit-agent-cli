@@ -96,9 +96,8 @@ if ($LASTEXITCODE -ne 0) { throw "wix build failed (exit $LASTEXITCODE)" }
 
 $msi = Get-Item revit-agent.msi
 $hash = (Get-FileHash -Algorithm SHA256 $msi.FullName).Hash.ToLowerInvariant()
-$checksumFile = "$($msi.FullName).sha256"
-Set-Content -Path $checksumFile -Value "$hash  $($msi.Name)" -Encoding ascii
-$size = "{0:N0}" -f $msi.Length
-Write-Host "Done: $($msi.FullName)  $size bytes" -ForegroundColor Green
-Write-Host "SHA256: $hash" -ForegroundColor Green
-Write-Host "Checksum: $checksumFile" -ForegroundColor Green
+$checksumFile = $msi.FullName + ".sha256"
+Set-Content -Path $checksumFile -Value ($hash + "  " + $msi.Name) -Encoding ascii
+Write-Host "Done"
+Write-Host "SHA256: $hash"
+Write-Host "Checksum: $checksumFile"
