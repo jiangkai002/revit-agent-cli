@@ -83,7 +83,7 @@ if (Test-Path $skillsSrc) {
     $n = (Get-ChildItem -Recurse -File $skillsDst).Count
     Write-Host "  skills: $n files bundled (read-only)"
 } else {
-    Write-Host "  skills: none staged (samples/skills absent?) — MSI ships without bundled skills" -ForegroundColor Yellow
+    Write-Host "  skills: none staged - MSI ships without bundled skills" -ForegroundColor Yellow
 }
 
 Write-Host "==> Generate WiX payload fragment" -ForegroundColor Cyan
@@ -98,6 +98,6 @@ $msi = Get-Item revit-agent.msi
 $hash = (Get-FileHash -Algorithm SHA256 $msi.FullName).Hash.ToLowerInvariant()
 $checksumFile = $msi.FullName + ".sha256"
 Set-Content -Path $checksumFile -Value ($hash + "  " + $msi.Name) -Encoding ascii
-Write-Host "Done"
+Write-Host "Build complete"
 Write-Host "SHA256: $hash"
-Write-Host "Checksum: $checksumFile"
+Write-Host "Checksum saved to: $checksumFile"
