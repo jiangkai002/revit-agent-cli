@@ -21,7 +21,7 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Install WiX
-        run: winget install --id WiXToolset.WiXToolset -e --accept-package-agreements --accept-source-agreements
+        run: dotnet tool install --global wix
 
       - name: Build MSI
         shell: pwsh
