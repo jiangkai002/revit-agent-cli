@@ -23,9 +23,41 @@ jobs:
       - name: Install WiX
         run: dotnet tool install --global wix
 
-      - name: Build MSI
+      - name: Publish CLI
+        run: dotnet publish RevitAgent.Cli/RevitAgent.Cli.csproj -c Release -r win-x64 --self-contained true -o installer-payload
+
+      - name: Publish GUI
+        run: dotnet publish RevitAgent.Gui/RevitAgent.Gui.csproj -c Release -r win-x64 --self-contained true -o installer-payload
+
+      - name: Copy executors
         shell: pwsh
-        run: .\build-msi.ps1
+        run: |
+          $staged = "RevitAgent.Cli/bin/Release/net10.0/win-x64"
+          foreach ($v in 2019, 2020, 2021, 2022) {
+            $src = "$staged/executor-$v"
+            $dst = "installer-payload/executor-$v"
+            if (Test-Path $dst) { Remove-Item -Recurse -Force $dst }
+            Copy-Item -Recurse -Force $src $dst
+          }
+          if (Test-Path "$staged/skills") {
+            if (Test-Path "installer-payload/skills") { Remove-Item -Recurse -Force "installer-payload/skills" }
+            Copy-Item -Recurse -Force "$staged/skills" "installer-payload/skills"
+          }
+
+      - name: Generate WiX fragment
+        shell: pwsh
+        run: ./gen-payload-fragment.ps1 -Payload installer-payload -OutFile payload-fragment.wxs
+
+      - name: Build MSI
+        run: wix build installer.wxs payload-fragment.wxs -arch x64 -o revit-agent.msi
+
+      - name: Generate checksum
+        shell: pwsh
+        run: |
+          $msi = Get-Item revit-agent.msi
+          $hash = (Get-FileHash -Algorithm SHA256 $msi.FullName).Hash.ToLowerInvariant()
+          Set-Content -Path "revit-agent.msi.sha256" -Value "$hash  $($msi.Name)" -Encoding ascii
+          Write-Host "SHA256: $hash"
 
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
