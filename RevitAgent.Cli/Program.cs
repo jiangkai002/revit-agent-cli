@@ -38,6 +38,7 @@ return verb switch
     "chat" => await ChatCommand.RunAsync(rest),
     "exec" => await ExecCommand.RunAsync(rest),
     "skill" => await SkillCommand.RunAsync(rest),
+    "knowledge" or "kb" => await KnowledgeCommand.RunAsync(rest),
     "help" or "-h" or "--help" => PrintHelp(),
     _ => PrintHelp($"未知命令: {verb}")
 };
@@ -52,6 +53,7 @@ static int PrintHelp(string? note = null){
     Console.WriteLine("  exec <cs>     直接运行一段 Revit 二次开发代码（不经 LLM，用于测试）");
     Console.WriteLine("  config        查看或编辑配置 (init/set/get/path)");
     Console.WriteLine("  skill         安装/查看/移除技能 (install <url|zip路径>|list|show <name>|remove <name>|path)");
+    Console.WriteLine("  knowledge     管理经验教训，智能体后续任务会借鉴 (add <标题> <内容>|list|show <id>|remove <id>|path)");
     Console.WriteLine();
     Console.WriteLine("通用选项:");
     Console.WriteLine("  --version <2019|2020|2021|2022>  Revit 版本（默认取配置）");
