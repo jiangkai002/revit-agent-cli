@@ -16,7 +16,7 @@ public static class ChatCommand
         }
 
         var host = new AgentHost(config, opts.Model, modelPaths, version);
-        Console.WriteLine($"RevitAgent 交互会话已启动（{modelPaths.Count} 个模型，Revit {version}）。输入 /rvt 选择模型（交互）；Ctrl+C 退出（或输入 exit）。");
+        Console.WriteLine($"RevitAgent 交互会话已启动（{modelPaths.Count} 个模型，Revit {version}）。输入 /rvt 选择模型（交互），/kb 管理经验教训；Ctrl+C 退出（或输入 exit）。");
 
         using var cts = new CancellationTokenSource();
         var state = new ReplState();
@@ -48,6 +48,13 @@ public static class ChatCommand
                 if (tokens.Length > 0 && tokens[0].Equals("/rvt", StringComparison.OrdinalIgnoreCase))
                 {
                     HandleRvtCommand(tokens[1..], host);
+                    continue;
+                }
+
+                // /kb is a local REPL command (no LLM): manage the lessons-learned store.
+                if (tokens.Length > 0 && tokens[0].Equals("/kb", StringComparison.OrdinalIgnoreCase))
+                {
+                    HandleKbCommand(tokens[1..]);
                     continue;
                 }
 
@@ -171,6 +178,91 @@ public static class ChatCommand
         Console.WriteLine($"已切换到 {resolved.Count} 个模型：");
         foreach (var p in resolved) Console.WriteLine($"  - {Path.GetFileName(p)}");
         Console.WriteLine("后续提问只作用于这些模型（/rvt all 恢复全部）。");
+    }
+
+    /// <summary>REPL command /kb: manage the lessons-learned store without involving the LLM.
+    /// Subcommands: (none|list) list entries; add &lt;text["::"body]&gt; save a lesson (title::body,
+    /// or the whole text with an auto title); show &lt;id|title&gt; print one entry; remove
+    /// &lt;id|title&gt; delete one; path print the store location. A mid-session add does not
+    /// refresh the already-built prompt catalog — the entry is still reachable in this session
+    /// via the LoadKnowledge tool and enters the catalog on the next session.</summary>
+    private static void HandleKbCommand(string[] args)
+    {
+        var sub = args.Length == 0 ? "list" : args[0];
+
+        switch (sub.ToLowerInvariant())
+        {
+            case "list":
+            {
+                var entries = KnowledgeStore.List();
+                if (entries.Count == 0)
+                {
+                    Console.WriteLine($"（暂无经验教训。用 /kb add <标题>::<内容> 沉淀，或让智能体在纠正后自动保存。）");
+                    return;
+                }
+                Console.WriteLine($"经验教训（{entries.Count} 条）：");
+                foreach (var e in entries)
+                {
+                    var tags = e.Tags.Count > 0 ? $" [tags: {string.Join(", ", e.Tags)}]" : "";
+                    Console.WriteLine($"  [{e.Id}] {e.Title}{tags} — {e.Source}");
+                }
+                Console.WriteLine("用 /kb show <编号|标题> 查看详情，/kb remove <编号|标题> 移除。");
+                return;
+            }
+            case "add":
+            {
+                var text = string.Join(' ', args[1..]).Trim();
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    Console.Error.WriteLine("用法: /kb add <标题>::<内容>   （或直接 /kb add <一句话教训>）");
+                    return;
+                }
+                // "title::body" splits at the first ::; otherwise the whole text is the body
+                // and the title is its first 40 chars (enough to match in the catalog).
+                string title, body;
+                var sep = text.IndexOf("::", StringComparison.Ordinal);
+                if (sep > 0)
+                {
+                    title = text[..sep].Trim();
+                    body = text[(sep + 2)..].Trim();
+                }
+                else
+                {
+                    title = text.Length > 40 ? text[..40].TrimEnd() : text;
+                    body = text;
+                }
+                var (entry, updated) = KnowledgeStore.Add(title, body, source: "user");
+                Console.WriteLine(updated
+                    ? $"已更新经验 [{entry.Id}] {entry.Title}"
+                    : $"已保存经验 [{entry.Id}] {entry.Title}");
+                Console.WriteLine("注意：当前会话的系统提示目录不会刷新；本会话可让智能体调用 LoadKnowledge 读取，下次会话自动进入目录。");
+                return;
+            }
+            case "show":
+            {
+                var key = string.Join(' ', args[1..]).Trim();
+                if (string.IsNullOrWhiteSpace(key)) { Console.Error.WriteLine("用法: /kb show <编号|标题>"); return; }
+                var text = KnowledgeStore.Show(key);
+                if (text is null) { Console.Error.WriteLine($"未找到经验: {key}（用 /kb 列出全部）"); return; }
+                Console.WriteLine(text);
+                return;
+            }
+            case "remove":
+            {
+                var key = string.Join(' ', args[1..]).Trim();
+                if (string.IsNullOrWhiteSpace(key)) { Console.Error.WriteLine("用法: /kb remove <编号|标题>"); return; }
+                var (ok, message) = KnowledgeStore.Remove(key);
+                if (ok) Console.WriteLine(message); else Console.Error.WriteLine(message);
+                return;
+            }
+            case "path":
+                Console.WriteLine($"经验知识库: {KnowledgeStore.KnowledgePath}");
+                Console.WriteLine("可用环境变量 REVIT_AGENT_KNOWLEDGE_PATH 指向其他完整文件路径（如团队共享位置）。");
+                return;
+            default:
+                Console.Error.WriteLine($"未知子命令: {sub}。可用: list | add | show | remove | path");
+                return;
+        }
     }
 
     /// <summary>Interactive multi-model picker (claude-style). Lists every model in
