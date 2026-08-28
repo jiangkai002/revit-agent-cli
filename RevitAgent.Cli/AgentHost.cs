@@ -12,11 +12,13 @@ namespace RevitAgent.Cli;
 
 /// <summary>
 /// Bridges the LLM agent loop (Microsoft Agent Framework) to the net48 Revit executor. Builds a
-/// <see cref="ChatClientAgent"/> with three tools — RunRevitCode (run C# → JSON answer), LoadSkill
-/// (load a skill's guidance+templates), and ExportCsv (run C# returning a row list → write CSV) —
-/// maintains one <see cref="AgentSession"/> across turns (multi-turn memory), and returns the
-/// agent's final text for each user message. The model batch (<see cref="_modelPaths"/>) runs in
-/// a single Revit session in the executor, so the ~20s headless init is paid once per batch.
+/// <see cref="ChatClientAgent"/> with five tools — RunRevitCode (run C# → JSON answer), LoadSkill
+/// (load a skill's guidance+templates), and ExportCsv (run C# returning a row list → write CSV),
+/// SaveKnowledge (persist a lessons-learned entry when the user corrects the agent), and
+/// LoadKnowledge (fetch a lesson's full body) — maintains one <see cref="AgentSession"/> across
+/// turns (multi-turn memory), and returns the agent's final text for each user message. The model
+/// batch (<see cref="_modelPaths"/>) runs in a single Revit session in the executor, so the ~20s
+/// headless init is paid once per batch.
 /// </summary>
 public sealed class AgentHost
 {
@@ -236,7 +238,40 @@ public sealed class AgentHost
                 + "返回 '已导出 N 行（M 列，来自 K 个模型）到 <path>'。注意：每模型返回完整列表，不要截断/抽样。",
             serializerOptions: null);
 
-        var instructions = LoadSystemPrompt() + BuildSkillsCatalog();
+        // SaveKnowledge: persist a distilled lesson learned. Called when the user corrects the
+        // agent's repeated wrong approach and the corrected run succeeds, or when the user
+        // explicitly asks to remember something. A case-insensitively identical title updates
+        // the existing entry in place (same lesson refined), never duplicates.
+        AITool saveKnowledge = AIFunctionFactory.Create(
+            (Func<string, string, string>)((title, body) =>
+            {
+                var (entry, updated) = KnowledgeStore.Add(title, body, source: "agent");
+                return updated
+                    ? $"已更新经验 [{entry.Id}] {entry.Title}（后续会话自动借鉴；用户可用 /kb remove {entry.Id} 移除）"
+                    : $"已保存经验 [{entry.Id}] {entry.Title}（后续会话自动借鉴；用户可用 /kb remove {entry.Id} 移除）";
+            }),
+            name: "SaveKnowledge",
+            description: "沉淀一条经验教训（lessons learned），保存到用户目录的知识库，供后续任务借鉴。"
+                + "参数：(1) title — 40 字以内的短标题，概括教训主题（如“房间面积需从平方英尺换算为平方米”）；"
+                + "(2) body — 教训正文：错误做法是什么、正确做法是什么、为什么，必要时附关键代码片段。"
+                + "仅当用户纠正了你的做法且随后确认结果正确，或用户明确要求记住（“记住”“下次别再犯”）时调用；"
+                + "一次只沉淀一条可复用的通用经验，不要保存与具体模型相关的临时信息。",
+            serializerOptions: null);
+
+        // LoadKnowledge: fetch a lesson's full body by id / exact title / unique substring.
+        // Reads live from disk, so entries saved mid-session (SaveKnowledge or /kb add) are
+        // immediately visible even though the prompt catalog was assembled when the agent
+        // was built. Not-found re-lists the catalog for self-correction (mirrors LoadSkill).
+        AITool loadKnowledge = AIFunctionFactory.Create(
+            (Func<string, string>)(key => KnowledgeStore.Show(key)
+                ?? $"未找到经验: {key}。可用经验: "
+                    + string.Join("; ", KnowledgeStore.List().Select(e => $"[{e.Id}] {e.Title}"))),
+            name: "LoadKnowledge",
+            description: "按编号或标题（支持子串匹配）加载一条经验的完整内容。系统提示末尾的“经验教训目录”中"
+                + "若有与当前需求相关的条目，先调用此工具获取详情并在生成代码时遵循，再执行任务。",
+            serializerOptions: null);
+
+        var instructions = LoadSystemPrompt() + BuildSkillsCatalog() + BuildKnowledgeCatalog();
         var services = new ServiceCollection().BuildServiceProvider();
 
         return new ChatClientAgent(
@@ -244,7 +279,7 @@ public sealed class AgentHost
             instructions,
             name: "revit-agent",
             description: "Generates and runs Revit API C# code against a batch of Revit models.",
-            tools: new List<AITool> { runRevitCode, loadSkill, exportCsv },
+            tools: new List<AITool> { runRevitCode, loadSkill, exportCsv, saveKnowledge, loadKnowledge },
             loggerFactory: new NullLoggerFactory(),
             services: services);
     }
@@ -289,6 +324,25 @@ public sealed class AgentHost
             lines.Add($"- {s.Name}{tags} — {desc}");
         }
         lines.Add("（匹配需求时先调用 LoadSkill(\"名称\") 加载详细指南与模板）");
+        return string.Join("\n", lines) + "\n";
+    }
+
+    /// <summary>Build the dynamic lessons-learned catalog appended to the system prompt. Only
+    /// id + title (+tags) per entry — progressive disclosure like the skills catalog, so the
+    /// prompt stays bounded as knowledge grows; full bodies load on demand via LoadKnowledge.</summary>
+    private static string BuildKnowledgeCatalog()
+    {
+        var entries = KnowledgeStore.List();
+        if (entries.Count == 0)
+            return "\n\n# 经验教训目录\n（暂无沉淀的经验教训。）\n";
+
+        var lines = new List<string> { "", "", "# 经验教训目录" };
+        foreach (var e in entries)
+        {
+            var tags = e.Tags.Count > 0 ? $" [tags: {string.Join(", ", e.Tags)}]" : "";
+            lines.Add($"- [{e.Id}] {e.Title}{tags}");
+        }
+        lines.Add("（生成代码前，若请求与某条经验相关，先调用 LoadKnowledge(\"编号或标题\") 获取详情并遵循）");
         return string.Join("\n", lines) + "\n";
     }
 
