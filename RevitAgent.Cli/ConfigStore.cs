@@ -4,13 +4,18 @@ namespace RevitAgent.Cli;
 
 /// <summary>
 /// User-editable configuration stored at %APPDATA%\revit-agent\config.json.
-/// The API key is NEVER stored here — only the NAME of the env var that holds it.
+/// The API key lives here (<see cref="ApiKey"/>) so non-developer users can set it in the
+/// GUI settings page; the env var named by <see cref="ApiKeyEnv"/> is a legacy fallback.
 /// </summary>
 public sealed class AgentConfig
 {
     public string Provider { get; set; } = "openai";
     public string BaseUrl { get; set; } = "";
     public string Model { get; set; } = "";
+
+    /// <summary>The API key itself. Takes priority over <see cref="ApiKeyEnv"/> when set.</summary>
+    public string ApiKey { get; set; } = "";
+
     public string ApiKeyEnv { get; set; } = "REVIT_AGENT_API_KEY";
     public int DefaultRevitVersion { get; set; } = 2022;
     public string DefaultModelPath { get; set; } = "";

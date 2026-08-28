@@ -75,12 +75,14 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <StackPanel Margin="0,4,24,0">
-                            <TextBlock Text="API 密钥环境变量" FontWeight="SemiBold" />
-                            <TextBlock Text="只保存变量名，密钥本体永不落盘。" Style="{StaticResource CaptionStyle}" Margin="0,3,0,0" />
+                            <TextBlock Text="API 密钥" FontWeight="SemiBold" />
+                            <TextBlock Text="保存在本机 config.json，发起会话时使用。"
+                                       Style="{StaticResource CaptionStyle}" Margin="0,3,0,0" />
                         </StackPanel>
                         <StackPanel Grid.Column="1">
-                            <ui:TextBox Text="{Binding ApiKeyEnv, UpdateSourceTrigger=PropertyChanged}"
-                                        PlaceholderText="REVIT_AGENT_API_KEY" />
+                            <ui:PasswordBox Password="{Binding ApiKey, UpdateSourceTrigger=PropertyChanged}"
+                                            RevealButtonEnabled="True"
+                                            PlaceholderText="sk-..." />
                             <TextBlock Text="{Binding ApiKeyStatus}" Style="{StaticResource CaptionStyle}" Margin="2,6,0,0" />
                         </StackPanel>
                     </Grid>

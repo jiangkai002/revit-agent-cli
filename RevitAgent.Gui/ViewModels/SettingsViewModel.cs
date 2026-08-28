@@ -11,11 +11,13 @@ namespace RevitAgent.Gui.ViewModels;
 /// <summary>
 /// Edits a clone of <see cref="AgentConfig"/> (loaded fresh when the app starts) and saves it
 /// via <see cref="ConfigStore.Save"/> to the same %APPDATA%\revit-agent\config.json the CLI
-/// reads. API-key semantics are preserved: only the env-var NAME is stored; the key itself is
-/// read at runtime and never displayed or persisted here.
+/// reads. The API key is stored in that file (editable here); the legacy env var named by
+/// <see cref="AgentConfig.ApiKeyEnv"/> still works as a fallback when the field is empty.
 /// </summary>
 public partial class SettingsViewModel : ObservableObject
 {
+    private readonly string _loadedApiKeyEnv; // preserved on save; env-var fallback name (legacy)
+
     [ObservableProperty]
     private string _baseUrl = "";
 
@@ -24,7 +26,7 @@ public partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ApiKeyStatus))]
-    private string _apiKeyEnv = "";
+    private string _apiKey = "";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ApiKeyStatus))]
@@ -47,9 +49,10 @@ public partial class SettingsViewModel : ObservableObject
     public SettingsViewModel()
     {
         var config = ConfigStore.Load();
+        _loadedApiKeyEnv = config.ApiKeyEnv;
         _baseUrl = config.BaseUrl;
         _model = config.Model;
-        _apiKeyEnv = config.ApiKeyEnv;
+        _apiKey = config.ApiKey;
         _defaultRevitVersion = config.DefaultRevitVersion;
         _defaultModelPath = config.DefaultModelPath;
         _themePreference = ThemeService.Preference;
@@ -61,23 +64,11 @@ public partial class SettingsViewModel : ObservableObject
     partial void OnThemePreferenceChanged(AppThemePreference value) =>
         ThemeService.SetPreference(value, Application.Current.MainWindow);
 
-    /// <summary>Live presence hint for the API key: probe the process, then the persisted
-    /// User/Machine scopes. Never shows the value, only whether it resolves.</summary>
-    public string ApiKeyStatus
-    {
-        get
-        {
-            if (string.IsNullOrWhiteSpace(ApiKeyEnv))
-                return "未填写环境变量名。";
-            if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(ApiKeyEnv)))
-                return "已在当前进程环境中检测到密钥。";
-            if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(ApiKeyEnv, EnvironmentVariableTarget.User)))
-                return "已在用户级环境变量中检测到密钥（重启应用后生效）。";
-            if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(ApiKeyEnv, EnvironmentVariableTarget.Machine)))
-                return "已在系统级环境变量中检测到密钥（重启应用后生效）。";
-            return $"未检测到密钥。请设置环境变量后重试（如 setx {ApiKeyEnv} \"sk-...\"）。";
-        }
-    }
+    /// <summary>Live presence hint for the API key. Never shows the value itself.</summary>
+    public string ApiKeyStatus =>
+        string.IsNullOrWhiteSpace(ApiKey)
+            ? "未填写密钥。发起对话将无法调用大模型（留空时会回退读取环境变量）。"
+            : "已配置密钥，新会话即可使用。";
 
     [RelayCommand]
     private void Save()
@@ -89,7 +80,8 @@ public partial class SettingsViewModel : ObservableObject
                 Provider = "openai",
                 BaseUrl = BaseUrl.Trim(),
                 Model = Model.Trim(),
-                ApiKeyEnv = string.IsNullOrWhiteSpace(ApiKeyEnv) ? "REVIT_AGENT_API_KEY" : ApiKeyEnv.Trim(),
+                ApiKey = ApiKey.Trim(),
+                ApiKeyEnv = _loadedApiKeyEnv,
                 DefaultRevitVersion = DefaultRevitVersion,
                 DefaultModelPath = DefaultModelPath.Trim(),
             });

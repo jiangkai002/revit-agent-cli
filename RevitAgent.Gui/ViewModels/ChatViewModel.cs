@@ -229,10 +229,10 @@ var cam = new FilteredElementCollector(doc)
         {
             Items.Add(new InfoItem("已取消"));
         }
-        catch (InvalidOperationException ex) // e.g. missing API key env var
+        catch (InvalidOperationException ex) // e.g. missing API key
         {
             Items.Add(new ErrorMessage(ex.Message));
-            Items.Add(new InfoItem("请到「设置」页检查 API 密钥环境变量后重试。"));
+            Items.Add(new InfoItem("请到「设置」页填写 API 密钥后重试。"));
         }
         catch (Exception ex)
         {

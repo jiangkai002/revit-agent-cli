@@ -24,7 +24,7 @@ public static class ConfigCommand
         }
         ConfigStore.Save(new AgentConfig());
         Console.WriteLine($"已写入默认配置: {ConfigStore.ConfigPath}");
-        Console.WriteLine($"请编辑填入 Provider/BaseUrl/Model，并设置 API 密钥环境变量（默认名 {new AgentConfig().ApiKeyEnv}）。");
+        Console.WriteLine("请编辑填入 Provider/BaseUrl/Model，并配置 API 密钥（config set apikey sk-...，或在桌面端设置页填写）。");
         return 0;
     }
 
@@ -39,19 +39,26 @@ public static class ConfigCommand
             case "provider": config.Provider = value; break;
             case "baseurl": config.BaseUrl = value; break;
             case "model": config.Model = value; break;
+            case "apikey": config.ApiKey = value; break;
             case "apikeyenv": config.ApiKeyEnv = value; break;
             case "version":
                 if (!int.TryParse(value, out var v)) { Console.Error.WriteLine("version 需为整数。"); return 1; }
                 config.DefaultRevitVersion = v; break;
             case "modelpath": config.DefaultModelPath = value; break;
             default:
-                Console.Error.WriteLine($"未知键: {key}（可选: provider/baseurl/model/apikeyenv/version/modelpath）");
+                Console.Error.WriteLine($"未知键: {key}（可选: provider/baseurl/model/apikey/apikeyenv/version/modelpath）");
                 return 1;
         }
         ConfigStore.Save(config);
-        Console.WriteLine($"已设置 {key} = {value}");
+        Console.WriteLine(key.Equals("apikey", StringComparison.OrdinalIgnoreCase)
+            ? "已设置 apikey = ***"
+            : $"已设置 {key} = {value}");
         return 0;
     }
+
+    private static string Mask(string key) => string.IsNullOrEmpty(key)
+        ? "(未设置)"
+        : key.Length <= 8 ? "****" : $"{key[..4]}****{key[^4..]}";
 
     private static int Get()
     {
@@ -60,7 +67,8 @@ public static class ConfigCommand
         Console.WriteLine($"Provider:            {config.Provider}");
         Console.WriteLine($"BaseUrl:             {config.BaseUrl}");
         Console.WriteLine($"Model:               {config.Model}");
-        Console.WriteLine($"ApiKeyEnv:           {config.ApiKeyEnv}");
+        Console.WriteLine($"ApiKey:              {Mask(config.ApiKey)}");
+        Console.WriteLine($"ApiKeyEnv:           {config.ApiKeyEnv}（ApiKey 为空时的回退环境变量）");
         Console.WriteLine($"DefaultRevitVersion: {config.DefaultRevitVersion}");
         Console.WriteLine($"DefaultModelPath:    {config.DefaultModelPath}");
         return 0;
@@ -77,7 +85,7 @@ public static class ConfigCommand
         if (note is not null) Console.WriteLine(note);
         Console.WriteLine("用法: revit-agent config <init|set|get|path>");
         Console.WriteLine("  init                生成默认配置");
-        Console.WriteLine("  set <key> <value>   设置项 (provider/baseurl/model/apikeyenv/version/modelpath)");
+        Console.WriteLine("  set <key> <value>   设置项 (provider/baseurl/model/apikey/apikeyenv/version/modelpath)");
         Console.WriteLine("  get                 显示当前配置");
         Console.WriteLine("  path                显示配置文件路径");
         return 1;

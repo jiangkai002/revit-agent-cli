@@ -148,12 +148,12 @@ public sealed class AgentHost
 
     private ChatClientAgent BuildAgent()
     {
-        var apiKey = Environment.GetEnvironmentVariable(_config.ApiKeyEnv);
+        var apiKey = ResolveApiKey(_config);
         if (string.IsNullOrWhiteSpace(apiKey))
         {
             throw new InvalidOperationException(
-                $"未设置 API 密钥环境变量 {_config.ApiKeyEnv}。" +
-                $"请先设置该环境变量（如 setx {_config.ApiKeyEnv} \"sk-...\"）后再试。");
+                "未配置 API 密钥。请在桌面端「设置」页填写后保存（或 revit-agent config set apikey sk-...；" +
+                $"也支持环境变量 {_config.ApiKeyEnv}）后再试。");
         }
 
         var clientOpts = new OpenAIClientOptions();
@@ -251,6 +251,14 @@ public sealed class AgentHost
 
     private string ResolveModel() =>
         !string.IsNullOrWhiteSpace(_modelOverride) ? _modelOverride : _config.Model;
+
+    /// <summary>Config key first (set via the GUI settings page or `config set apikey`);
+    /// the env var named by <see cref="AgentConfig.ApiKeyEnv"/> is a legacy fallback.</summary>
+    private static string ResolveApiKey(AgentConfig config)
+    {
+        if (!string.IsNullOrWhiteSpace(config.ApiKey)) return config.ApiKey;
+        return Environment.GetEnvironmentVariable(config.ApiKeyEnv) ?? string.Empty;
+    }
 
     private static string LoadSystemPrompt()
     {

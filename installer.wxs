@@ -11,8 +11,8 @@
 
   Installs per-machine to C:\Program Files\revit-agent\ and appends that dir to the
   System PATH (MSI Environment table — safe append, auto-removed on uninstall). No API
-  key is baked in; the user sets REVIT_AGENT_API_KEY + runs `revit-agent config set`
-  after install.
+  key is baked in; the user configures it in the GUI settings page (stored in
+  %APPDATA%\revit-agent\config.json) after install.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package Name="RevitAgent"

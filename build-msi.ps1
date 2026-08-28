@@ -13,8 +13,8 @@
 #   wix build -arch x64 -> revit-agent.msi (+ revit-agent.wixpdb)
 #
 # Output lives at the repo root and is gitignored (local-only — never committed).
-# The MSI contains NO API key: the key is read at runtime from the env var named by
-# config.ApiKeyEnv (default REVIT_AGENT_API_KEY); the installer only appends PATH.
+# The MSI contains NO API key: the user enters it in the GUI settings page (or
+# `revit-agent config set apikey`), which stores it in %APPDATA%\revit-agent\config.json.
 #
 # Usage:  powershell -NoProfile -ExecutionPolicy Bypass -File build-msi.ps1
 # Prereq: .NET 10 SDK + WiX v7 on PATH (winget install wixtoolset.WiXToolset).

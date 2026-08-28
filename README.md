@@ -69,7 +69,7 @@ WPF 桌面端使用 Windows Fluent UI 视觉语言，并针对长时间模型分
 
 - Windows x64。Revit 的原生组件只有 x64。
 - 装好对应版本的 Revit（2019–2022 任选）。
-- 跑 `run`/`chat`（让大模型生成代码）要自己配一个大模型的 API 密钥，兼容任何 OpenAI 兼容后端。密钥只读环境变量，不写进配置文件。
+- 跑 `run`/`chat`（让大模型生成代码）要自己配一个大模型的 API 密钥，兼容任何 OpenAI 兼容后端。密钥在桌面端「设置」页填写，保存在本机 `%APPDATA%\revit-agent\config.json`。
 - 构建需要 .NET 10 SDK。
 
 ## 快速开始
@@ -98,13 +98,13 @@ dotnet run --project .\RevitAgent.Gui\RevitAgent.Gui.csproj
 .\build.ps1
 ```
 
-配置（密钥只走环境变量，不进 config.json）：
+配置（密钥保存在本机 config.json，也可在桌面端「设置」页填写）：
 
 ```
 revit-agent config init
 revit-agent config set baseurl https://api.openai.com/v1
 revit-agent config set model gpt-4o
-setx REVIT_AGENT_API_KEY "sk-..."
+revit-agent config set apikey "sk-..."
 ```
 
 跑：

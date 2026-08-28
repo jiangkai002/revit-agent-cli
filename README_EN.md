@@ -92,10 +92,11 @@ dotnet run --project .\RevitAgent.Gui\RevitAgent.Gui.csproj
 revit-agent config init
 revit-agent config set baseurl https://api.openai.com/v1
 revit-agent config set model gpt-4o
-setx REVIT_AGENT_API_KEY "sk-..."
+revit-agent config set apikey "sk-..."
 ```
 
-The API key itself is read from the environment variable and is never stored in `config.json`.
+The API key is stored in `config.json` (the same file the GUI settings page writes); a legacy
+`REVIT_AGENT_API_KEY` environment variable still works as a fallback when the key is empty.
 
 ### Examples
 

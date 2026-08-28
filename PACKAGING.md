@@ -37,9 +37,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-msi.ps1
 
 1. 双击 `revit-agent.msi`，允许管理员权限。
 2. 从开始菜单启动 **RevitAgent**。
-3. 在软件“设置”页填写 API Base URL、模型名称和 API 密钥环境变量名。
-4. 在 Windows 环境变量中创建对应的密钥变量；默认名称是 `REVIT_AGENT_API_KEY`。
-5. 重新启动 RevitAgent，选择目标 Revit 版本和 `.rvt` 模型。
+3. 在软件“设置”页填写 API Base URL、模型名称和 API 密钥，保存后新建会话即可使用。
+4. 选择目标 Revit 版本和 `.rvt` 模型。
 
 目标电脑必须安装需要使用的 Autodesk Revit 版本。安装包不包含 Revit 本体，也不包含任何 API 密钥。
 
