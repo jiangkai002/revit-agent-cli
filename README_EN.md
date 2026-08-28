@@ -54,6 +54,7 @@ The WPF application follows the Windows Fluent UI visual language and is designe
 - **Generated modern C#:** Roslyn compiles the code produced for each request instead of selecting from a fixed script library.
 - **Skills:** five read-only examples ship with the package—room audit, building-operations room compliance, and MEP device number/family/connector checks. Additional skills can be installed from an HTTP(S) ZIP or a local ZIP file.
 - **CSV export:** table-shaped results are written as UTF-8 with BOM for Excel. Relative output paths resolve beside the first active Revit model; multi-model exports include a leading `Model` column.
+- **Lessons learned (knowledge):** when the agent repeatedly fails and only succeeds after your correction, the lesson can be distilled into a knowledge entry stored at `%APPDATA%\revit-agent\knowledge.json` — the agent proactively saves it via the SaveKnowledge tool after a confirmed correction, or you can add one manually in chat with `/kb add <title>::<body>`. Future related tasks consult the catalog first, so the same mistake is not repeated. Manage with `/kb list|show|remove|path` in chat or the `revit-agent knowledge` CLI command; set `REVIT_AGENT_KNOWLEDGE_PATH` to a shared file so a team reuses one knowledge base.
 - **Live progress:** reasoning, tool calls, tool results, and the Revit startup stage are shown while the request runs.
 
 ## Requirements
@@ -114,6 +115,10 @@ revit-agent skill list
 
 # Install a skill from a local ZIP package
 revit-agent skill install "D:\Skills\my-revit-skill.zip"
+
+# Manage lessons learned (auto-saved after confirmed corrections; /kb works inside chat)
+revit-agent knowledge add "Convert room area from square feet" "Room.Area returns square feet; multiply by 0.09290304 for square meters"
+revit-agent knowledge list
 
 # Run handwritten code without an LLM
 revit-agent exec samples\RoomCheck.cs `

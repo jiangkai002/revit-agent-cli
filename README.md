@@ -63,6 +63,7 @@ WPF 桌面端使用 Windows Fluent UI 视觉语言，并针对长时间模型分
 - 技能（skills）：把某个领域的约定、清单、代码模板打包成一个 skill，按需加载——目录里只放名字和一句话描述，需要时再拉全文，不占基础提示。**自带 5 个示例技能（房间审计、建筑运维房间合规、MEP 设备编号 / 族类别 / 连接器检查），随包只读内置，开箱即用**；GUI 支持 URL 和本地 ZIP 安装，CLI 可用 `revit-agent skill install <url|zip路径>` 安装，`skill list / show / remove / path` 管理。
 - 交互选模型：`chat` 多轮会话里输入 `/rvt`，弹出 Claude 式多选列表（↑↓ 移动、Space 切换、A 全选、Enter 确认、Esc 取消），后续提问只作用于勾选的模型；`/rvt all` 恢复全部。也支持 `/rvt 1`、`/rvt 文件名` 等文本快捷方式。
 - 导出 CSV：模型参数之类的表格数据可以直接导成带 BOM 的 UTF-8 CSV，Excel 能直接开。相对路径默认写入第一个模型所在目录；多模型时首列是模型文件名，各模型的行拼在一起。
+- 经验教训（knowledge）：智能体反复出错、经你纠正后才做对的事，可以沉淀成一条经验存在本机 `%APPDATA%\revit-agent\knowledge.json`——被纠正成功后智能体会主动调用 SaveKnowledge 保存，也可以在 chat 里用 `/kb add <标题>::<内容>` 手动保存。下次遇到相关任务，智能体会先读经验再写代码，不重蹈覆辙。`/kb list|show|remove|path` 或 CLI `revit-agent knowledge` 命令管理；环境变量 `REVIT_AGENT_KNOWLEDGE_PATH` 可指向共享文件，让团队共用一份经验。
 - 进度显示：跑的时候在终端用灰色实时显示模型的推理、工具调用、返回结果。那段约 20 秒的 Revit 启动空窗会有动画过渡。
 
 ## 用之前要准备什么
@@ -121,6 +122,10 @@ revit-agent skill list
 
 # 从 URL 或本地 ZIP 安装技能
 revit-agent skill install "D:\Skills\my-revit-skill.zip"
+
+# 管理经验教训（智能体被纠正后自动沉淀，也可手动添加；chat 里用 /kb）
+revit-agent knowledge add "房间面积需从平方英尺换算为平方米" "Room.Area 返回平方英尺，需乘以 0.09290304"
+revit-agent knowledge list
 
 # 直接跑一段手写代码（不经过大模型、免 API 密钥，用来测试执行链路）
 revit-agent exec samples\RoomCheck.cs --version 2022 --model-path "D:\Models\MyModel.rvt"
