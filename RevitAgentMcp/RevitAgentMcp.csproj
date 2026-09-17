@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>RevitAgentMcp</AssemblyName>
+    <RootNamespace>RevitAgentMcp</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    Reuse the CLI's executor bridge without refactoring it out of RevitAgent.Cli: compile the
+    same two source files into this assembly. They depend only on BCL types (verified), so
+    linking keeps a single source of truth for the spawn/result-file/serial-gate logic.
+  -->
+  <ItemGroup>
+    <Compile Include="..\RevitAgent.Cli\RunRevitCodeTool.cs" Link="Core\RunRevitCodeTool.cs" />
+    <Compile Include="..\RevitAgent.Cli\ExecutorLocator.cs" Link="Core\ExecutorLocator.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
+    <PackageReference Include="ModelContextProtocol" Version="2.2.0" />
+  </ItemGroup>
+
+  <!--
+    Stage the per-version net48 executors beside this assembly (the same layout the CLI
+    stages), so ExecutorLocator's baseDir probe (executor-<v>\RevitAgent.Executor.<v>.exe)
+    resolves in dev `dotnet run`. Mirrors BuildAndStageExecutors in RevitAgent.Cli.csproj.
+  -->
+  <Target Name="BuildAndStageExecutors" BeforeTargets="Build">
+    <MSBuild Projects="..\RevitAgent.Executor\RevitAgent.Executor.csproj" Properties="Configuration=$(Configuration);RevitVersion=2019;TargetFramework=net48;RuntimeIdentifier=win-x64" />
+    <MSBuild Projects="..\RevitAgent.Executor\RevitAgent.Executor.csproj" Properties="Configuration=$(Configuration);RevitVersion=2020;TargetFramework=net48;RuntimeIdentifier=win-x64" />
+    <MSBuild Projects="..\RevitAgent.Executor\RevitAgent.Executor.csproj" Properties="Configuration=$(Configuration);RevitVersion=2021;TargetFramework=net48;RuntimeIdentifier=win-x64" />
+    <MSBuild Projects="..\RevitAgent.Executor\RevitAgent.Executor.csproj" Properties="Configuration=$(Configuration);RevitVersion=2022;TargetFramework=net48;RuntimeIdentifier=win-x64" />
+    <ItemGroup>
+      <ExecutorFiles2019 Include="..\RevitAgent.Executor\bin\$(Configuration)\2019\**\*" />
+      <ExecutorFiles2020 Include="..\RevitAgent.Executor\bin\$(Configuration)\2020\**\*" />
+      <ExecutorFiles2021 Include="..\RevitAgent.Executor\bin\$(Configuration)\2021\**\*" />
+      <ExecutorFiles2022 Include="..\RevitAgent.Executor\bin\$(Configuration)\2022\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ExecutorFiles2019)" DestinationFolder="$(OutputPath)executor-2019\%(RecursiveDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(ExecutorFiles2020)" DestinationFolder="$(OutputPath)executor-2020\%(RecursiveDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(ExecutorFiles2021)" DestinationFolder="$(OutputPath)executor-2021\%(RecursiveDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(ExecutorFiles2022)" DestinationFolder="$(OutputPath)executor-2022\%(RecursiveDir)" SkipUnchangedFiles="true" />
+    <!-- Slim staged executors (drop pdbs, unused PolyHook platforms, Roslyn locale satellites).
+         The script lives in RevitAgent.Cli and is project-agnostic: the staged root travels
+         through the STAGED_ROOT env var. -->
+    <Exec Command="set &quot;STAGED_ROOT=$(OutputPath)&quot; &amp; powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\RevitAgent.Cli\slim-executors.ps1&quot;" />
+  </Target>
+
+</Project>
