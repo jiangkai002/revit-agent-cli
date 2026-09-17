@@ -6,8 +6,8 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>RevitAgentMcp</AssemblyName>
-    <RootNamespace>RevitAgentMcp</RootNamespace>
+    <AssemblyName>RevitAgent.Mcp</AssemblyName>
+    <RootNamespace>RevitAgent.Mcp</RootNamespace>
   </PropertyGroup>
 
   <!--

@@ -3,7 +3,7 @@ using System.Text.Json;
 using ModelContextProtocol.Server;
 using RevitAgent.Cli;
 
-namespace RevitAgentMcp;
+namespace RevitAgent.Mcp;
 
 /// <summary>
 /// Tools exposed over MCP. The CALLING client's model (Claude / WorkBuddy / ...) is the code

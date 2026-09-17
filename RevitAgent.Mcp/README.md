@@ -1,4 +1,4 @@
-# RevitAgentMcp
+# RevitAgent.Mcp
 
 把 RevitAgent 的核心执行能力——**不打开 Revit 界面，编译并执行调用 Revit API 的 C# 代码，返回 JSON 结果**——封装为本地 MCP (Model Context Protocol) server，供 Claude Desktop、Claude Code、WorkBuddy 等支持 MCP 的客户端使用。
 
@@ -15,12 +15,12 @@
 ## 前提
 
 - Windows x64，本机装有对应版本的 Revit（2019–2022）。
-- 构建产物 `RevitAgentMcp.exe` 旁边有 `executor-<版本>\` 文件夹（`dotnet build` 自动暂存四版执行器）。
+- 构建产物 `RevitAgent.Mcp.exe` 旁边有 `executor-<版本>\` 文件夹（`dotnet build` 自动暂存四版执行器）。
 
 ## 构建
 
 ```powershell
-dotnet build RevitAgentMcp\RevitAgentMcp.csproj -c Release
+dotnet build RevitAgent.Mcp\RevitAgent.Mcp.csproj -c Release
 ```
 
 ## 客户端接入
@@ -33,7 +33,7 @@ dotnet build RevitAgentMcp\RevitAgentMcp.csproj -c Release
 {
   "mcpServers": {
     "revit-agent": {
-      "command": "C:\\path\\to\\RevitAgentMcp.exe"
+      "command": "C:\\path\\to\\RevitAgent.Mcp.exe"
     }
   }
 }
@@ -42,12 +42,12 @@ dotnet build RevitAgentMcp\RevitAgentMcp.csproj -c Release
 ### Claude Code
 
 ```powershell
-claude mcp add revit-agent -- "C:\path\to\RevitAgentMcp.exe"
+claude mcp add revit-agent -- "C:\path\to\RevitAgent.Mcp.exe"
 ```
 
 ### 其他支持 stdio MCP 的客户端（WorkBuddy 等）
 
-在客户端的 MCP / 工具设置里填同样的命令（command 指向 `RevitAgentMcp.exe`，无需参数）。
+在客户端的 MCP / 工具设置里填同样的命令（command 指向 `RevitAgent.Mcp.exe`，无需参数）。
 
 ## 环境变量
 
